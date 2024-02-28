@@ -1,4 +1,4 @@
-#  Simple Boolean Toggler
+# 🌗 Simple Boolean Toggler (WIP)
 
 <!-- panvimdoc-ignore-start -->
 
