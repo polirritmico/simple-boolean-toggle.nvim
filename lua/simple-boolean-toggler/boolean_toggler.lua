@@ -1,9 +1,10 @@
 local M = {}
 
+---@type table The `key` is a boolean value string, and the `value` its opposite.
 M.booleans = {}
 
 ---Populates the inner `booleans` table with the upper and lower case variants.
----@param base_booleans table Array-list like table with an array of two oposite string values
+---@param base_booleans table Array-list like table with an array of two opposite string values
 function M.generate_booleans(base_booleans, opts)
   for _, tbl in pairs(base_booleans) do
     M.booleans[tbl[1]] = tbl[2]
@@ -19,9 +20,13 @@ function M.generate_booleans(base_booleans, opts)
   end
 end
 
----@param increment boolean
+---Explore the current line from the cursor position and replace the first
+---matching word from the booleans table with its opposite.
+---The function aims to imitate the builtin <C-a>/<C-x> functionality but in
+---addition to increment/decrement the first number, it would toggle between
+---the first matching booleans.
+---@param increment boolean Pass `true` to increment, `false` otherwise.
 function M.toggle(increment)
-  -- TODO: Avoid messing with the register, `u` is storing all the movements?
   local cmd_count = vim.v.count > 1 and vim.v.count or ""
   local original_position = vim.api.nvim_win_get_cursor(0)
   local line = vim.api.nvim_get_current_line()
@@ -87,34 +92,28 @@ function M.toggle(increment)
   vim.api.nvim_win_set_cursor(0, original_position)
 end
 
-function M.toggle_inc()
-  M.toggle(true)
-end
-
-function M.toggle_dec()
-  M.toggle(false)
-end
-
 local enabled = false
 
-function M.wrap_default_keys()
+---Set `<C-a>`/`<C-x>` keymaps to the `toggle` function
+function M.overwrite_default_keys()
   enabled = true
-  vim.keymap.set({ "n", "v" }, "", M.toggle_inc)
-  vim.keymap.set({ "n", "v" }, "", M.toggle_dec)
+  vim.keymap.set({ "n", "v" }, "", function() M.toggle(true) end)
+  vim.keymap.set({ "n", "v" }, "", function() M.toggle(false) end)
 end
 
+---Unset `<C-a>`/`<C-x>` keymaps to the default behaviour
 function M.restore_default_keys()
   enabled = false
-  -- TODO: How to restore this?
   vim.keymap.del({ "n", "v" }, "")
   vim.keymap.del({ "n", "v" }, "")
 end
 
-function M.toggle_toggler()
+---Enable/Disable the custom togger
+function M.toggle_the_toggler()
   if enabled then
     M.restore_default_keys()
   else
-    M.wrap_default_keys()
+    M.overwrite_default_keys()
   end
 end
 
