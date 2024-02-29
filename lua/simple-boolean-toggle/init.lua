@@ -1,3 +1,4 @@
+---@class SimpleBooleanToggler
 local M = {}
 
 local toggle = require("simple-boolean-toggle.boolean_toggle")

@@ -1,5 +1,10 @@
+---@class BooleanToggleConfig
 local M = {}
 
+---@class BooleanToggleOptions
+---@field booleans { [string]: string }
+---@field extend_booleans { [string]: string }
+---@field overwrite_builtins boolean
 M.defaults = {
   -- Use Title Case, the plugin generates the upper and lower case variants
   booleans = { -- Use this table only to fully reeplace this defaults entries.
@@ -24,8 +29,7 @@ function M.setup(opts)
   toggle.generate_booleans(M.options.booleans)
 
   if M.options.overwrite_builtins then
-    toggle.overwrite_default_keys()
-  else
+    toggle.overwrite_default_keys(false)
   end
 end
 
