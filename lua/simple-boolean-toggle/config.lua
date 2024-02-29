@@ -1,29 +1,31 @@
 local M = {}
 
 M.defaults = {
-  booleans = { -- use this table to reeplace this defaults
+  -- Use Title Case, the plugin generates the upper and lower case variants
+  booleans = { -- Use this table only to fully reeplace this defaults entries.
     { "True", "False" },
     { "Yes", "No" },
     { "On", "Off" },
   },
   extend_booleans = {}, -- If you want to add more entries use this table to extend the list
-  overwrite_default_keys = true, -- Change or not the default `<C-a>`/`<C-x>` behavior
-  only_booleans = false, -- Don't modify numbers, only the matching booleans. Useful when defining your own keys.
+  overwrite_builtins = true, -- `true` to overwrite the base `<C-a>`/`<C-x>` keymaps. If this is set to `false` then you would need to define custom mappings to use the plugin. Check the provided functions.
 }
 
 M.options = {}
 
 function M.setup(opts)
   M.options = vim.tbl_deep_extend("force", M.defaults, opts or {})
+  -- FIX: Check: https://github.com/neovim/neovim/issues/23654
   if opts.extend_booleans then
     vim.list_extend(M.options.booleans, opts.extend_booleans)
   end
 
   local toggle = require("simple-boolean-toggle.boolean_toggle")
   toggle.generate_booleans(M.options.booleans)
-  toggle.enabled_builtin = not M.options.only_booleans
-  if M.options.overwrite_default_keys then
+
+  if M.options.overwrite_builtins then
     toggle.overwrite_default_keys()
+  else
   end
 end
 

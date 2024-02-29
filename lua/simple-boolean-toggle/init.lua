@@ -5,6 +5,7 @@ local config = require("simple-boolean-toggle.config")
 
 M.toggle_inc = function() toggle.toggle(true) end
 M.toggle_dec = function() toggle.toggle(false) end
+M.toggle = function() toggle.toggle() end
 
 M.toggle_builtins = toggle.toggle_the_toggle
 M.overwrite_builtins = toggle.overwrite_default_keys
