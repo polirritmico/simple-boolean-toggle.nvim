@@ -40,18 +40,18 @@ Just like `<C-a>`/`<C-x>` default behaviours. For example, for this text:
     local foo = { true, 99 }
 <
 
-If the cursor is before or over any character of the word "`true`", and
+If the cursor is before or over any character of the word "`true`" and
 `<C-a>`/`<C-x>` is pressed, it would change it to:
 
 >lua
     local foo = { false, 99 }
 <
 
-If the cursor is over the "`,`", the space between, or the number "`99`" and
-`<C-a>` is pressed, it would change the number to:
+If instead, the cursor is over the "`,`", the space between, or the number
+"`99`", and `<C-a>` is pressed, it would change the number to:
 
 >lua
-    local foo = { false, 100 }
+    local foo = { true, 100 }
 <
 
 
