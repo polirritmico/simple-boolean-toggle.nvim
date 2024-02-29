@@ -29,7 +29,7 @@ function M.setup(opts)
   toggle.generate_booleans(M.options.booleans)
 
   if M.options.overwrite_builtins then
-    toggle.overwrite_default_keys(false)
+    toggle.overwrite_default_keys(true)
   end
 end
 

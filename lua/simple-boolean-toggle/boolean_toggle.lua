@@ -1,10 +1,4 @@
 ---@class SimpleBooleanToggle
----@field booleans { [string]: string }
----@field generate_booleans function
----@field toggle function
----@field overwrite_default_keys function
----@field restore_default_keys function
----@field toggle_the_toggle function
 local M = {}
 
 ---A dictionary containing boolean values and their opposites.
@@ -96,18 +90,24 @@ end
 local overwriten_builtins = false
 
 ---Set `<C-a>`/`<C-x>` keymaps to the `toggle` function
----@param silent boolean `true` to avoid notification
+---@param silent? boolean `true` to avoid notification
 function M.overwrite_default_keys(silent)
+  if overwriten_builtins then
+    return
+  end
   overwriten_builtins = true
   vim.keymap.set({ "n", "v" }, "", function() M.toggle(true) end)
   vim.keymap.set({ "n", "v" }, "", function() M.toggle(false) end)
-  if silent ~= false then
+  if not silent then
     vim.notify("[Boolean Toggle]: Enabled", vim.log.levels.INFO)
   end
 end
 
 ---Unset `<C-a>`/`<C-x>` keymaps, returning them to the default behaviour
 function M.restore_default_keys()
+  if not overwriten_builtins then
+    return
+  end
   overwriten_builtins = false
   vim.keymap.del({ "n", "v" }, "")
   vim.keymap.del({ "n", "v" }, "")
