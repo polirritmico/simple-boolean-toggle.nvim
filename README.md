@@ -3,8 +3,8 @@
 <!-- panvimdoc-ignore-start -->
 
 ![Pull Requests](https://img.shields.io/badge/Pull_Requests-Welcome-a4e400?style=flat-square)
-![GitHub last commit](https://img.shields.io/github/last-commit/polirritmico/telescope-lazy-plugins.nvim/main?style=flat-square&color=62d8f1)
-![GitHub issues](https://img.shields.io/github/issues/polirritmico/telescope-lazy-plugins.nvim?style=flat-square&color=fc1a70)
+![GitHub last commit](https://img.shields.io/github/last-commit/polirritmico/simple-boolean-toggle.nvim/main?style=flat-square&color=62d8f1)
+![GitHub issues](https://img.shields.io/github/issues/polirritmico/simple-boolean-toggle.nvim?style=flat-square&color=fc1a70)
 
 <!-- panvimdoc-ignore-end -->
 
@@ -33,7 +33,7 @@ return {
 
 ## 🔍 Usage
 
-Just like `<C-a>`/`<C-x>` default behaviour. For example, for this text:
+Just like `<C-a>`/`<C-x>` default behaviours. For example, for this text:
 
 ```lua
 local foo = { true, 99 }
@@ -66,10 +66,11 @@ Simple Boolean Toggle comes with the following functions:
 | `restore_builtins`   | Restore to the Neovim builtin behavior                     |
 | `setup`              | Setup function. Check the Configurations section.          |
 
-To access them just require the module:
+To access them just require the module. For example:
 
 ```lua
-local boolean_toggle = require("simple-boolean-togger")
+local boolean_toggle = require("simple-boolean-toggle")
+boolean_toggle.toggle_builtins()
 ```
 
 ## 🛠️ Configuration:
@@ -80,30 +81,29 @@ Simple Boolean Toggle comes with the following defaults:
 
 ```lua
 {
-  booleans = { -- If you want to fully reeplace this defaults use this table. (Only alpha characters)
+  -- Use Title Case, the plugin generates the upper and lower case variants
+  booleans = { -- Use this table only to fully replace this defaults entries.
     { "True", "False" },
     { "Yes", "No" },
     { "On", "Off" },
   },
   extend_booleans = {}, -- If you want to add more entries use this table to extend the list
-  overwrite_default_keys = true, -- Change or not the default `<C-a>`/`<C-x>` behavior
-  only_booleans = false, -- Don't modify numbers, only the matching booleans. Useful when defining your own keys.
+  overwrite_builtins = true, -- `true` to overwrite the base `<C-a>`/`<C-x>` keymaps and enable numbers increase/decrease. If this is set to `false` then you would need to define custom mappings to use the plugin. Check the provided functions.
 }
 ```
 
 ### Full example
 
+This is for the base use case (overwriting `<C-a>`/`<C-x>`) and adding a custom
+boolean pair:
+
 ```lua
 return {
   {
-    "polirritmico/simple-boolean-togger.nvim",
+    "polirritmico/simple-boolean-toggle.nvim",
     event = { "BufReadPost", "BufWritePost", "BufNewFile" }, -- For lazy loading
     keys = {
-      {
-        "<leader>tb",
-        ":lua require('simple-boolean-toggle').toggle_builtins()<Cr>",
-        desc = "Boolean Toggle: On/Off",
-      },
+      { "<leader>tb", ":lua require('simple-boolean-toggle').toggle_builtins()<Cr>", desc = "Boolean Toggle: On/Off" },
     },
     opts = {
       extend_booleans = {
@@ -111,7 +111,7 @@ return {
         { "High", "Low" }
         -- Manually define upper and lower case variants for auto-generation
         -- { "Something", "Nothing", { uppercase = true, lowercase = false } },
-        -- Or be specific:
+        -- Or match only one case:
         -- { "foO", "bAR", { uppercase = false, lowercase = false } },
       },
     },
@@ -119,10 +119,25 @@ return {
 }
 ```
 
+If you want to keep the default keymaps or behaviour just add your own map:
+
+```lua
+return {
+  {
+    "polirritmico/simple-boolean-toggle.nvim",
+    keys = {
+      { "<leader>tb", ":lua require('simple-boolean-toggle').toggle()<Cr>", desc = "Boolean Toggle: Change the next matching boolean string." },
+    },
+    opts = { overwrite_builtins = false },
+  },
+}
+```
+
+
 ## 🌱 Contributions
 
-This plugin is made mainly for my personal use, but suggestions, issues, or pull
-requests are very welcome.
+This plugin is made mainly for my personal use, but suggestions, new
+functionality, issues, or pull requests are very welcome.
 
 ***Enjoy***
 
