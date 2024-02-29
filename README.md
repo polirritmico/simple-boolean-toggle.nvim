@@ -15,9 +15,9 @@ functionality.
 
 <!-- panvimdoc-ignore-start -->
 
-## Demo
+## 📽 In Action
 
-![fallback text](image.jpg "hover text")
+https://github.com/polirritmico/simple-boolean-toggle.nvim/assets/24460484/04bed6c8-c146-4a20-907c-d1ce48524b75
 
 <!-- panvimdoc-ignore-end -->
 
@@ -92,7 +92,7 @@ Simple Boolean Toggle comes with the following defaults:
 }
 ```
 
-### Full example
+### Full Examples
 
 This is for the base use case (overwriting `<C-a>`/`<C-x>`) and adding a custom
 boolean pair:
