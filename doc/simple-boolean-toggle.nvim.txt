@@ -9,7 +9,7 @@ Table of Contents               *simple-boolean-toggle.nvim-table-of-contents*
 4. Functions:                          |simple-boolean-toggle.nvim-functions:|
 5. Configuration:                  |simple-boolean-toggle.nvim-configuration:|
   - Defaults                             |simple-boolean-toggle.nvim-defaults|
-  - Full example                     |simple-boolean-toggle.nvim-full-example|
+  - Full Examples                   |simple-boolean-toggle.nvim-full-examples|
 6. Contributions                    |simple-boolean-toggle.nvim-contributions|
 
 ==============================================================================
@@ -107,7 +107,7 @@ Simple Boolean Toggle comes with the following defaults:
 <
 
 
-FULL EXAMPLE                         *simple-boolean-toggle.nvim-full-example*
+FULL EXAMPLES                       *simple-boolean-toggle.nvim-full-examples*
 
 This is for the base use case (overwriting `<C-a>`/`<C-x>`) and adding a custom
 boolean pair:
