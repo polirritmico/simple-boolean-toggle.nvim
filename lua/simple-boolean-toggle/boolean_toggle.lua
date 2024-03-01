@@ -96,8 +96,18 @@ function M.overwrite_default_keys(silent)
     return
   end
   overwriten_builtins = true
-  vim.keymap.set({ "n", "v" }, "", function() M.toggle(true) end)
-  vim.keymap.set({ "n", "v" }, "", function() M.toggle(false) end)
+  vim.keymap.set(
+    { "n", "v" },
+    "",
+    function() M.toggle(true) end,
+    { desc = "Boolean Toggle: Increment number/toggle boolean value." }
+  )
+  vim.keymap.set(
+    { "n", "v" },
+    "",
+    function() M.toggle(false) end,
+    { desc = "Boolean Toggle: Decrement number/toggle boolean value." }
+  )
   if not silent then
     vim.notify("[Boolean Toggle]: Enabled", vim.log.levels.INFO)
   end
