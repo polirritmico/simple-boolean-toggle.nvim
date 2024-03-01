@@ -1,4 +1,4 @@
-# 🌗 Simple Boolean Toggle (WIP)
+# 🌗 Simple Boolean Toggle
 
 <!-- panvimdoc-ignore-start -->
 
@@ -10,7 +10,7 @@
 
 ## 🐧 Description
 
-A simple plugin to add toggle boolean behaviour to the `<C-a>`/`<C-x>` builtin
+A simple plugin to add toggle boolean behaviour to the `<C-a>`/`<C-x>` built-in
 functionality.
 
 <!-- panvimdoc-ignore-start -->
@@ -23,7 +23,7 @@ https://github.com/polirritmico/simple-boolean-toggle.nvim/assets/24460484/04bed
 
 ## 📦 Installation
 
-- For lazy:
+- For Lazy:
 
 ```lua
 return {
@@ -46,7 +46,7 @@ If the cursor is before or over any character of the word "`true`" and
 local foo = { false, 99 }
 ```
 
-If instead, the cursor is over the "`,`", the space between, or the number
+If instead the cursor is over the "`,`", the space between, or the number
 "`99`", and `<C-a>` is pressed, it would change the number to:
 
 ```lua
@@ -55,22 +55,22 @@ local foo = { true, 100 }
 
 ## Functions:
 
-Simple Boolean Toggle comes with the following functions:
+Simple Boolean Toggle provides the following functions:
 
-| Function             | Description                                                |
-|----------------------|------------------------------------------------------------|
-| `toggle_inc`         | Run the increment function at the current cursor position. |
-| `toggle_dec`         | Run the increment function at the current cursor position. |
-| `toggle_builtins`    | Enable/disable the plugin functions                        |
-| `overwrite_builtins` | Replaces the base `<C-a>`/`<C-x>`.                         |
-| `restore_builtins`   | Restore to the Neovim builtin behavior                     |
-| `setup`              | Setup function. Check the Configurations section.          |
+| Function             | Description                                                  |
+|----------------------|--------------------------------------------------------------|
+| `toggle_inc`         | Run the increment function from the current cursor position. |
+| `toggle_dec`         | Run the decrement function from the current cursor position. |
+| `toggle`             | Toggle boolean values from the current cursor position.      |
+| `overwrite_builtins` | Replaces the base `<C-a>`/`<C-x>` built-in behaviour.        |
+| `restore_builtins`   | Restore to the Neovim built-in behavior.                     |
+| `toggle_builtins`    | Overwrite/Restore the built-ins `<C-a>`/`<C-x>` maps.        |
 
 To access them just require the module. For example:
 
 ```lua
-local boolean_toggle = require("simple-boolean-toggle")
-boolean_toggle.toggle_builtins()
+local sbt = require("simple-boolean-toggle")
+vim.keymap.set("n", "<leader>tb", sbt.toggle, { silent = true, desc = "Boolean Toggle: Toggle the boolean values from the current cursor position" })
 ```
 
 ## 🛠️ Configuration:
@@ -82,7 +82,7 @@ Simple Boolean Toggle comes with the following defaults:
 ```lua
 {
   -- Use Title Case, the plugin generates the upper and lower case variants
-  booleans = { -- Use this table only to fully replace this defaults entries.
+  booleans = { -- Use this table only to fully replace this default entries.
     { "True", "False" },
     { "Yes", "No" },
     { "On", "Off" },
@@ -119,7 +119,7 @@ return {
 }
 ```
 
-If you want to keep the default keymaps or behaviour just add your own map:
+To simply add a new map and keep the Nvim defaults:
 
 ```lua
 return {
@@ -135,8 +135,8 @@ return {
 
 ## 🌱 Contributions
 
-This plugin is made mainly for my personal use, but suggestions, new
-functionality, issues, or pull requests are very welcome.
+This plugin is made mainly for my personal use, but suggestions, requests for
+new functionality, issues, or pull requests are very welcome.
 
 ***Enjoy***
 

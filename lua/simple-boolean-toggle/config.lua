@@ -7,7 +7,7 @@ local M = {}
 ---@field overwrite_builtins boolean
 M.defaults = {
   -- Use Title Case, the plugin generates the upper and lower case variants
-  booleans = { -- Use this table only to fully reeplace this defaults entries.
+  booleans = { -- Use this table only to fully replace these default entries.
     { "True", "False" },
     { "Yes", "No" },
     { "On", "Off" },
