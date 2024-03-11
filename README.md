@@ -1,4 +1,10 @@
-# 🌗 Simple Boolean Toggle
+# 🌗 Simple Boolean Toggle (WIP)
+
+## TODO:
+
+- [ ] Support for Visual mode (v)
+- [ ] Support for Line-Visual mode (V)
+- [ ] Support for Block-Visual mode (\22)
 
 <!-- panvimdoc-ignore-start -->
 
