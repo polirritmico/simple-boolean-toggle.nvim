@@ -28,6 +28,15 @@ function M.generate_booleans(base_booleans)
   end
 end
 
+---Run the base built-in increase/decrease function
+function M.builtin_call(mode, cmd_count)
+  if mode then
+    return vim.cmd("normal!" .. cmd_count .. "")
+  else
+    return vim.cmd("normal!" .. cmd_count .. "")
+  end
+end
+
 ---Explore the current line from the cursor position and replace the first
 ---matching word from the booleans table with its opposite.
 ---The function aims to imitate the builtin <C-a>/<C-x> functionality but in
@@ -36,6 +45,11 @@ end
 ---@param mode boolean|nil `true` to increment, `false` to decrement and `nil` to don't modify numbers .
 function M.toggle(mode)
   local cmd_count = vim.v.count > 1 and vim.v.count or ""
+  if mode ~= nil and vim.api.nvim_get_mode().mode:sub(1, 1) ~= "n" then
+    M.builtin_call(mode, cmd_count)
+    return
+  end
+
   local original_position = vim.api.nvim_win_get_cursor(0)
   local line = vim.api.nvim_get_current_line()
   local line_size = vim.fn.strlen(line)
@@ -65,11 +79,7 @@ function M.toggle(mode)
   while current_char_pos + 1 <= line_size and current_line == original_position[1] do
     -- check for numbers:
     if mode ~= nil and (tonumber(cword) or string.match(cword, "%d") ~= nil) then
-      if mode then
-        return vim.cmd("normal!" .. cmd_count .. "")
-      else
-        return vim.cmd("normal!" .. cmd_count .. "")
-      end
+      M.builtin_call(mode, cmd_count)
     end
 
     -- check if cword and curstr are in sync
