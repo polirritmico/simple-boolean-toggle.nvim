@@ -29,11 +29,11 @@ function M.generate_booleans(base_booleans)
 end
 
 ---Run the base built-in increase/decrease function
-function M.builtin_call(mode, cmd_count)
-  if mode then
-    return vim.cmd("normal!" .. cmd_count .. "")
+function M.builtin_call(direction, cmd_count)
+  if direction then
+    vim.cmd("normal!" .. cmd_count .. "")
   else
-    return vim.cmd("normal!" .. cmd_count .. "")
+    vim.cmd("normal!" .. cmd_count .. "")
   end
 end
 
@@ -42,11 +42,11 @@ end
 ---The function aims to imitate the builtin <C-a>/<C-x> functionality but in
 ---addition to increment/decrement the first number, it would toggle between
 ---the first matching booleans.
----@param mode boolean|nil `true` to increment, `false` to decrement and `nil` to don't modify numbers .
-function M.toggle(mode)
+---@param direction boolean|nil `true` to increment, `false` to decrement and `nil` to don't modify numbers .
+function M.toggle(direction)
   local cmd_count = vim.v.count > 1 and vim.v.count or ""
-  if mode ~= nil and vim.api.nvim_get_mode().mode:sub(1, 1) ~= "n" then
-    M.builtin_call(mode, cmd_count)
+  if direction ~= nil and vim.api.nvim_get_mode().mode:sub(1, 1) ~= "n" then
+    M.builtin_call(direction, cmd_count)
     return
   end
 
@@ -78,8 +78,9 @@ function M.toggle(mode)
   update_vars_to_cursor_position()
   while current_char_pos + 1 <= line_size and current_line == original_position[1] do
     -- check for numbers:
-    if mode ~= nil and (tonumber(cword) or string.match(cword, "%d") ~= nil) then
-      M.builtin_call(mode, cmd_count)
+    if direction ~= nil and (tonumber(cword) or string.match(cword, "%d") ~= nil) then
+      M.builtin_call(direction, cmd_count)
+      return
     end
 
     -- check if cword and curstr are in sync
