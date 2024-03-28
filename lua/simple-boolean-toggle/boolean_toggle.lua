@@ -1,5 +1,6 @@
 ---@class SimpleBooleanToggle
 local M = {}
+local P = P
 
 ---A dictionary containing boolean values and their opposites.
 ---Each `key` is a boolean string, and its corresponding `value` is its opposite.
@@ -37,35 +38,69 @@ function M.builtin_call(direction, cmd_count)
   end
 end
 
----Explore the current line from the cursor position and replace the first
----matching word from the booleans table with its opposite.
----The function aims to imitate the builtin <C-a>/<C-x> functionality but in
----addition to increment/decrement the first number, it would toggle between
----the first matching booleans.
----@param direction boolean|nil `true` to increment, `false` to decrement and `nil` to don't modify numbers .
-function M.toggle(direction)
-  local cmd_count = vim.v.count > 1 and vim.v.count or ""
-  if direction ~= nil and vim.api.nvim_get_mode().mode:sub(1, 1) ~= "n" then
-    M.builtin_call(direction, cmd_count)
-    return
+function M.toggle_nvim_visual_mode(direction, nvim_mode)
+  local lines = {}
+  local region = {}
+  local init_select_pos = vim.fn.getpos("v")
+  local end_select_pos = vim.fn.getpos(".")
+
+  local init_select, end_select
+  if nvim_mode == "V" then
+    init_select = { init_select_pos[2], 0 }
+    end_select = { end_select_pos[2], -1 }
+  else
+    init_select = { init_select_pos[2], init_select_pos[3] }
+    end_select = { end_select_pos[2], end_select_pos[3] }
   end
 
+  if nvim_mode == "" then
+    -- BUG: https://github.com/neovim/neovim/issues/18154
+    region = vim.region(0, init_select, end_select, "v", false)
+    for linenr, _ in pairs(region) do
+      local line = M.get_line(linenr, init_select[2], end_select[2])
+      -- line = M.toggle_line(direction, line)
+      table.insert(lines, linenr, line)
+    end
+  else
+    region = vim.region(0, init_select, end_select, nvim_mode, false)
+    for linenr, range in pairs(region) do
+      local line = M.get_line(linenr, range[1], range[2])
+      -- line = M.toggle_line(direction, line)
+      table.insert(lines, linenr, line)
+    end
+  end
+  table.sort(lines)
+  P("lines:", lines)
+end
+
+---@param increase boolean
+---@param line string
+---@return string
+function M.toggle_line(increase, line)
+  -- TODO:
+  return ""
+end
+
+function M.get_line(linenr, left, right)
+  if left == 0 and right == -1 then
+    return vim.fn.getline(linenr)
+  elseif left == 0 then
+    return vim.fn.getline(linenr):sub(1, right)
+  else
+    return vim.fn.getline(linenr):sub(left, right)
+  end
+end
+
+function M.toggle_nvim_normal_mode(direction)
   local original_position = vim.api.nvim_win_get_cursor(0)
   local line = vim.api.nvim_get_current_line()
   local line_size = vim.fn.strlen(line)
 
   local current_line = original_position[1]
-  local current_char_pos = original_position[2] -- cursor col is 0 index
+  local current_char_pos = original_position[2]
+  local cmd_count = vim.v.count > 1 and vim.v.count or ""
   local curstr = ""
   local cword = ""
-
-  -- `cword` is taken from `:h cword`. It should be the word under the cursor,
-  -- but if e.g., the cursor is in the space before the word or over some symbol
-  -- like " or =, then it would also include the next word. Thats why `curstr`
-  -- is needed. `curstr` would actually show what is under the cursor. However,
-  -- the problem is that it also includes other symbols surrounding the word.
-  -- This is why we need both to be in sync to ensure the cursor is over the
-  -- correct word and apply the `"_ciw` command where appropriate.
 
   local function update_vars_to_cursor_position()
     local current_pos = vim.api.nvim_win_get_cursor(0)
@@ -83,7 +118,6 @@ function M.toggle(direction)
       return
     end
 
-    -- check if cword and curstr are in sync
     if curstr ~= "" and string.find(cword, curstr) then
       local opposite_str = M.booleans[cword]
       if opposite_str then
@@ -96,6 +130,29 @@ function M.toggle(direction)
     update_vars_to_cursor_position()
   end
   vim.api.nvim_win_set_cursor(0, original_position)
+end
+
+function M.toggle(direction)
+  local nvim_mode = vim.api.nvim_get_mode().mode:sub(1, 1)
+
+  if nvim_mode == "n" then
+    M.toggle_nvim_normal_mode(direction)
+    return
+  else
+    M.toggle_nvim_visual_mode(direction, nvim_mode)
+    return
+  end
+  -- elseif nvim_mode == "v" then
+  --   reported_mode = "visual"
+  -- elseif nvim_mode == "V" then
+  --   reported_mode = "visual_line"
+  -- elseif nvim_mode == "" then
+  --   reported_mode = "block_mode"
+  -- end
+
+  -- local original_position = vim.api.nvim_win_get_cursor(0)
+  -- local line = vim.api.nvim_get_current_line()
+  -- local line_size = vim.fn.strlen(line)
 end
 
 local overwriten_builtins = false
