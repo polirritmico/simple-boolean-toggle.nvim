@@ -1,6 +1,5 @@
 ---@class SimpleBooleanToggle
 local M = {}
-local P = P
 
 ---A dictionary containing boolean values and their opposites.
 ---Each `key` is a boolean string, and its corresponding `value` is its opposite.
@@ -45,12 +44,18 @@ function M.toggle_nvim_visual_mode(direction, nvim_mode)
   local end_select_pos = vim.fn.getpos(".")
 
   local init_select, end_select
+  local init_col_pos, end_col_pos
   if nvim_mode == "V" then
     init_select = { init_select_pos[2], 0 }
     end_select = { end_select_pos[2], -1 }
+    init_col_pos = 0
+    end_col_pos = vim.api.nvim_strwidth(vim.fn.getline(end_select[1]))
   else
     init_select = { init_select_pos[2], init_select_pos[3] }
     end_select = { end_select_pos[2], end_select_pos[3] }
+    init_col_pos = init_select[2] - 1
+    -- end_col_pos = vim.api.nvim_strwidth(vim.fn.getline(end_select[1]))
+    end_col_pos = end_select_pos[3]
   end
 
   if nvim_mode == "" then
@@ -58,27 +63,54 @@ function M.toggle_nvim_visual_mode(direction, nvim_mode)
     region = vim.region(0, init_select, end_select, "v", false)
     for linenr, _ in pairs(region) do
       local line = M.get_line(linenr, init_select[2], end_select[2])
-      -- line = M.toggle_line(direction, line)
+      line = M.toggle_line(direction, line)
       table.insert(lines, linenr, line)
     end
   else
     region = vim.region(0, init_select, end_select, nvim_mode, false)
     for linenr, range in pairs(region) do
       local line = M.get_line(linenr, range[1], range[2])
-      -- line = M.toggle_line(direction, line)
+      line = M.toggle_line(direction, line)
       table.insert(lines, linenr, line)
     end
   end
-  table.sort(lines)
-  P("lines:", lines)
+
+  local replacement = {}
+  for i = init_select[1], end_select[1] do
+    table.insert(replacement, lines[i])
+  end
+  vim.api.nvim_buf_set_text(
+    0,
+    init_select[1] - 1,
+    init_col_pos,
+    end_select[1] - 1,
+    end_col_pos,
+    replacement
+  )
 end
 
 ---@param increase boolean
 ---@param line string
 ---@return string
 function M.toggle_line(increase, line)
-  -- TODO:
-  return ""
+  for word in line:gmatch("%S+") do
+    local left, value, right = word:match("(.-)(%d+)(.*)")
+    value = tonumber(value)
+    if value then
+      value = value + (increase == nil and 0 or increase == true and 1 or -1)
+      local new = (left or "") .. tostring(value) .. (right or "")
+      line = line:gsub(word, new, 1)
+      return line
+    end
+
+    left, value, right = word:match("(%p-)(%a+)(%p*)")
+    local opposite_str = M.booleans[value]
+    if opposite_str then
+      line = line:gsub(word, (left or "") .. opposite_str .. (right or ""), 1)
+      return line
+    end
+  end
+  return line
 end
 
 function M.get_line(linenr, left, right)
