@@ -112,16 +112,19 @@ end
 ---@return string
 function M.toggle_line(increase, line)
   for word in line:gmatch("%S+") do
-    local left, value, right = word:match("(.-)(%d+)(.*)")
-    value = tonumber(value)
-    if value then
-      value = value + (increase == nil and 0 or increase == true and 1 or -1)
-      local new = (left or "") .. tostring(value) .. (right or "")
-      line = line:gsub(word, new, 1)
-      return line
+    if increase ~= nil then
+      local left, value, right = word:match("(.-)(%d+)(.*)")
+      value = tonumber(value)
+      if value then
+        local cmd_count = vim.v.count == 0 and 1 or vim.v.count
+        value = value + (cmd_count * (increase and 1 or -1))
+        local new = (left or "") .. tostring(value) .. (right or "")
+        line = line:gsub(word, new, 1)
+        return line
+      end
     end
 
-    left, value, right = word:match("(%p-)(%a+)(%p*)")
+    local left, value, right = word:match("(%p-)(%a+)(%p*)")
     local opposite_str = M.booleans[value]
     if opposite_str then
       line = line:gsub(word, (left or "") .. opposite_str .. (right or ""), 1)
