@@ -38,47 +38,42 @@ function M.builtin_call(direction, cmd_count)
 end
 
 function M.toggle_nvim_visual_mode(direction, nvim_mode)
-  local lines = {}
-  local region = {}
+  if nvim_mode == "" then
+    M.toggle_nvim_visual_block(direction)
+    return
+  end
+
   local init_select_pos = vim.fn.getpos("v")
   local end_select_pos = vim.fn.getpos(".")
-
-  local init_select, end_select
-  local init_col_pos, end_col_pos
-  if nvim_mode == "V" then
+  local init_select, end_select, init_col_pos, end_col_pos
+  if nvim_mode == "v" then
+    init_select = { init_select_pos[2], init_select_pos[3] }
+    end_select = { end_select_pos[2], end_select_pos[3] }
+    init_col_pos = init_select[2] - 1
+    end_col_pos = end_select_pos[3]
+  elseif nvim_mode == "V" then
     init_select = { init_select_pos[2], 0 }
     end_select = { end_select_pos[2], -1 }
     init_col_pos = 0
     end_col_pos = vim.api.nvim_strwidth(vim.fn.getline(end_select[1]))
   else
-    init_select = { init_select_pos[2], init_select_pos[3] }
-    end_select = { end_select_pos[2], end_select_pos[3] }
-    init_col_pos = init_select[2] - 1
-    -- end_col_pos = vim.api.nvim_strwidth(vim.fn.getline(end_select[1]))
-    end_col_pos = end_select_pos[3]
+    return
   end
 
-  if nvim_mode == "" then
-    -- BUG: https://github.com/neovim/neovim/issues/18154
-    region = vim.region(0, init_select, end_select, "v", false)
-    for linenr, _ in pairs(region) do
-      local line = M.get_line(linenr, init_select[2], end_select[2])
-      line = M.toggle_line(direction, line)
-      table.insert(lines, linenr, line)
-    end
-  else
-    region = vim.region(0, init_select, end_select, nvim_mode, false)
-    for linenr, range in pairs(region) do
-      local line = M.get_line(linenr, range[1], range[2])
-      line = M.toggle_line(direction, line)
-      table.insert(lines, linenr, line)
-    end
+  local lines = {}
+  local region = vim.region(0, init_select, end_select, nvim_mode, false)
+
+  for linenr, range in pairs(region) do
+    local line = M.get_line(linenr, range[1], range[2])
+    line = M.toggle_line(direction, line)
+    table.insert(lines, linenr, line)
   end
 
   local replacement = {}
   for i = init_select[1], end_select[1] do
     table.insert(replacement, lines[i])
   end
+
   vim.api.nvim_buf_set_text(
     0,
     init_select[1] - 1,
@@ -88,6 +83,8 @@ function M.toggle_nvim_visual_mode(direction, nvim_mode)
     replacement
   )
 end
+
+function M.toggle_nvim_visual_block(direction) end
 
 ---@param increase boolean
 ---@param line string
