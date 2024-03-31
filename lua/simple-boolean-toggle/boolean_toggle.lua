@@ -41,11 +41,6 @@ end
 ---@param nvim_mode string
 ---@param direction boolean|nil
 function M.toggle_nvim_visual_mode(nvim_mode, direction)
-  if nvim_mode == "" then
-    M.toggle_nvim_visual_block(direction)
-    return
-  end
-
   local init_select_pos = vim.fn.getpos("v")
   local end_select_pos = vim.fn.getpos(".")
   if end_select_pos[2] < init_select_pos[2] then
@@ -118,28 +113,31 @@ function M.toggle_nvim_visual_block(direction)
   end
 end
 
----@param increase boolean|nil If nil then it does not affect digits
+---@param increase boolean|nil If nil it does not change digits.
 ---@param line string
 ---@return string
 function M.toggle_line(increase, line)
-  for word in line:gmatch("%S+") do
+  for capture_group in line:gmatch("%S+") do
     if increase ~= nil then
-      local left, value, right = word:match("(.-)(%d+)(.*)")
+      local left, value, right = capture_group:match("(.-)(%-?%d+)(.*)")
       value = tonumber(value)
       if value then
         local cmd_count = vim.v.count == 0 and 1 or vim.v.count
-        value = value + (cmd_count * (increase and 1 or -1))
-        local new = (left or "") .. tostring(value) .. (right or "")
-        line = line:gsub(word, new, 1)
-        return line
+        local new_value = value + (cmd_count * (increase and 1 or -1))
+        local replacement = string.format("%s%d%s", left or "", new_value, right or "")
+
+        if value < 0 then -- gsub pattern needs the "-" char to be escaped
+          capture_group = string.format("%s-%d%s", left or "", value, right or "")
+        end
+        return (string.gsub(line, capture_group, replacement, 1))
       end
     end
 
-    local left, value, right = word:match("(%p-)(%a+)(%p*)")
+    local left, value, right = capture_group:match("(%p-)(%a+)(%p*)")
     local opposite_str = M.booleans[value]
     if opposite_str then
-      line = line:gsub(word, (left or "") .. opposite_str .. (right or ""), 1)
-      return line
+      local replacement = string.format("%s%s%s", left or "", opposite_str, right or "")
+      return (string.gsub(line, capture_group, replacement, 1))
     end
   end
   return line
@@ -200,22 +198,11 @@ function M.toggle(direction)
 
   if nvim_mode == "n" then
     M.toggle_nvim_normal_mode(direction)
-    return
+  elseif nvim_mode == "" then
+    M.toggle_nvim_visual_block(direction)
   else
     M.toggle_nvim_visual_mode(nvim_mode, direction)
-    return
   end
-  -- elseif nvim_mode == "v" then
-  --   reported_mode = "visual"
-  -- elseif nvim_mode == "V" then
-  --   reported_mode = "visual_line"
-  -- elseif nvim_mode == "" then
-  --   reported_mode = "block_mode"
-  -- end
-
-  -- local original_position = vim.api.nvim_win_get_cursor(0)
-  -- local line = vim.api.nvim_get_current_line()
-  -- local line_size = vim.fn.strlen(line)
 end
 
 local overwriten_builtins = false
