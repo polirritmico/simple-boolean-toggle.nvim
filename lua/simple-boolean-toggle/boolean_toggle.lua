@@ -58,22 +58,14 @@ function M.toggle_nvim_visual_mode(nvim_mode, direction)
     end_select = { end_select_pos[2], -1 }
     init_col_pos = 0
     end_col_pos = vim.api.nvim_strwidth(vim.fn.getline(end_select[1]))
-  else
-    return
   end
 
   local region = vim.region(0, init_select, end_select, nvim_mode, false)
-
-  local lines = {}
-  for linenr, range in pairs(region) do
-    local line = M.get_line(linenr, range[1], range[2])
-    line = M.toggle_line(direction, line)
-    table.insert(lines, linenr, line)
-  end
-
   local replacement = {}
-  for i = init_select[1], end_select[1] do
-    table.insert(replacement, lines[i])
+  for linenr = init_select[1], end_select[1] do
+    local line = M.get_line(linenr, region[linenr][1], region[linenr][2])
+    line = M.toggle_line(direction, line)
+    table.insert(replacement, line)
   end
 
   vim.api.nvim_buf_set_text(
