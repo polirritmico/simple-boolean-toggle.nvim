@@ -48,6 +48,10 @@ function M.toggle_nvim_visual_mode(nvim_mode, direction)
 
   local init_select_pos = vim.fn.getpos("v")
   local end_select_pos = vim.fn.getpos(".")
+  if end_select_pos[2] < init_select_pos[2] then
+    init_select_pos, end_select_pos = end_select_pos, init_select_pos
+  end
+
   local init_select, end_select, init_col_pos, end_col_pos
   if nvim_mode == "v" then
     init_select = { init_select_pos[2], init_select_pos[3] }
@@ -91,6 +95,9 @@ end
 function M.toggle_nvim_visual_block(direction)
   local init_select = vim.fn.getpos("v")
   local end_select = vim.fn.getpos(".")
+  if end_select[2] < init_select[2] then
+    init_select, end_select = end_select, init_select
+  end
   local init_col = init_select[3]
   local end_col = end_select[3]
 
