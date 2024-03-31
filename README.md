@@ -1,10 +1,4 @@
-# 🌗 Simple Boolean Toggle (WIP)
-
-## TODO:
-
-- [ ] Support for Visual mode (v)
-- [ ] Support for Line-Visual mode (V)
-- [ ] Support for Block-Visual mode (\22)
+# 🌗 Simple Boolean Toggle
 
 <!-- panvimdoc-ignore-start -->
 
@@ -17,7 +11,8 @@
 ## 🐧 Description
 
 A simple plugin to add toggle boolean behaviour to the `<C-a>`/`<C-x>` built-in
-functionality.
+functionality. Works in visual, visual-line and visual-block modes
+(`v`/`V`/`^V`).
 
 <!-- panvimdoc-ignore-start -->
 
@@ -59,12 +54,18 @@ If instead the cursor is over the "`,`", the space between, or the number
 local foo = { true, 100 }
 ```
 
+### Visual modes
+
+In visual mode, only affects the selected region and just like the built-in
+behaviour, it would only toggle the first match in each line (the leftmost
+number or boolean value).
+
 ## Functions:
 
 Simple Boolean Toggle provides the following functions:
 
 | Function             | Description                                                  |
-|----------------------|--------------------------------------------------------------|
+| -------------------- | ------------------------------------------------------------ |
 | `toggle_inc`         | Run the increment function from the current cursor position. |
 | `toggle_dec`         | Run the decrement function from the current cursor position. |
 | `toggle`             | Toggle boolean values from the current cursor position.      |
@@ -144,5 +145,4 @@ return {
 This plugin is made mainly for my personal use, but suggestions, requests for
 new functionality, issues, or pull requests are very welcome.
 
-***Enjoy***
-
+**_Enjoy_**
