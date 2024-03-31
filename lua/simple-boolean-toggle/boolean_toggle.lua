@@ -60,9 +60,9 @@ function M.toggle_nvim_visual_mode(direction, nvim_mode)
     return
   end
 
-  local lines = {}
   local region = vim.region(0, init_select, end_select, nvim_mode, false)
 
+  local lines = {}
   for linenr, range in pairs(region) do
     local line = M.get_line(linenr, range[1], range[2])
     line = M.toggle_line(direction, line)
@@ -84,7 +84,28 @@ function M.toggle_nvim_visual_mode(direction, nvim_mode)
   )
 end
 
-function M.toggle_nvim_visual_block(direction) end
+function M.toggle_nvim_visual_block(direction)
+  local init_select = vim.fn.getpos("v")
+  local end_select = vim.fn.getpos(".")
+  local init_col = init_select[3]
+  local end_col = end_select[3]
+
+  for linenr = init_select[2], end_select[2] do
+    local original_region = M.get_line(linenr, init_col, end_col)
+    local replacement = M.toggle_line(direction, original_region)
+
+    local line_width = vim.api.nvim_strwidth(vim.fn.getline(linenr))
+    local end_col_line = line_width < end_col and line_width or end_col
+    vim.api.nvim_buf_set_text(
+      0,
+      linenr - 1,
+      init_col - 1,
+      linenr - 1,
+      end_col_line,
+      { replacement }
+    )
+  end
+end
 
 ---@param increase boolean
 ---@param line string
