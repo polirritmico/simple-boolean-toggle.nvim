@@ -1,4 +1,10 @@
-# 🌗 Simple Boolean Toggle
+# 🌗 Simple Boolean Toggle (WIP)
+
+## TODO
+
+- [ ] Fix last line visual mode
+- [ ] Fix v mode selection outside line (right most, extra space)
+- [ ] Document limitations (non space in booleans, only alphanumeric)
 
 <!-- panvimdoc-ignore-start -->
 
