@@ -28,16 +28,19 @@ function M.generate_booleans(base_booleans)
   end
 end
 
----Run the base built-in increase/decrease function
-function M.builtin_call(direction, cmd_count)
-  if direction then
-    vim.cmd("normal!" .. cmd_count .. "")
+function M.get_line(linenr, left, right)
+  if left == 0 and right == -1 then
+    return vim.fn.getline(linenr)
+  elseif left == 0 then
+    return vim.fn.getline(linenr):sub(1, right)
   else
-    vim.cmd("normal!" .. cmd_count .. "")
+    return vim.fn.getline(linenr):sub(left, right)
   end
 end
 
-function M.toggle_nvim_visual_mode(direction, nvim_mode)
+---@param nvim_mode string
+---@param direction boolean|nil
+function M.toggle_nvim_visual_mode(nvim_mode, direction)
   if nvim_mode == "" then
     M.toggle_nvim_visual_block(direction)
     return
@@ -84,6 +87,7 @@ function M.toggle_nvim_visual_mode(direction, nvim_mode)
   )
 end
 
+---@param direction boolean|nil
 function M.toggle_nvim_visual_block(direction)
   local init_select = vim.fn.getpos("v")
   local end_select = vim.fn.getpos(".")
@@ -107,7 +111,7 @@ function M.toggle_nvim_visual_block(direction)
   end
 end
 
----@param increase boolean
+---@param increase boolean|nil If nil then it does not affect digits
 ---@param line string
 ---@return string
 function M.toggle_line(increase, line)
@@ -134,13 +138,12 @@ function M.toggle_line(increase, line)
   return line
 end
 
-function M.get_line(linenr, left, right)
-  if left == 0 and right == -1 then
-    return vim.fn.getline(linenr)
-  elseif left == 0 then
-    return vim.fn.getline(linenr):sub(1, right)
+---Run the base built-in increase/decrease function
+function M.builtin_call(direction, cmd_count)
+  if direction then
+    vim.cmd("normal!" .. cmd_count .. "")
   else
-    return vim.fn.getline(linenr):sub(left, right)
+    vim.cmd("normal!" .. cmd_count .. "")
   end
 end
 
@@ -192,7 +195,7 @@ function M.toggle(direction)
     M.toggle_nvim_normal_mode(direction)
     return
   else
-    M.toggle_nvim_visual_mode(direction, nvim_mode)
+    M.toggle_nvim_visual_mode(nvim_mode, direction)
     return
   end
   -- elseif nvim_mode == "v" then
