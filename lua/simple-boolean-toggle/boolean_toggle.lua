@@ -38,29 +38,25 @@ function M.get_line(linenr, left, right)
   end
 end
 
----@param nvim_mode string
 ---@param direction boolean|nil
-function M.toggle_nvim_visual_mode(nvim_mode, direction)
+function M.toggle_nvim_visual_mode(direction)
   local init_select_pos = vim.fn.getpos("v")
   local end_select_pos = vim.fn.getpos(".")
   if end_select_pos[2] < init_select_pos[2] then
     init_select_pos, end_select_pos = end_select_pos, init_select_pos
   end
 
-  local init_select, end_select, init_col_pos, end_col_pos
-  if nvim_mode == "v" then
-    init_select = { init_select_pos[2], init_select_pos[3] }
-    end_select = { end_select_pos[2], end_select_pos[3] }
-    init_col_pos = init_select[2] - 1
-    end_col_pos = end_select_pos[3]
-  elseif nvim_mode == "V" then
-    init_select = { init_select_pos[2], 0 }
-    end_select = { end_select_pos[2], -1 }
-    init_col_pos = 0
-    end_col_pos = vim.api.nvim_strwidth(vim.fn.getline(end_select[1]))
+  local init_select = { init_select_pos[2], init_select_pos[3] }
+  local end_select = { end_select_pos[2], end_select_pos[3] }
+  local init_col_pos = init_select[2] - 1
+  local end_col_pos = end_select_pos[3]
+
+  local last_line_len = vim.api.nvim_strwidth(vim.fn.getline(end_select[1] - 1))
+  if end_col_pos > last_line_len then
+    end_col_pos = last_line_len
   end
 
-  local region = vim.region(0, init_select, end_select, nvim_mode, false)
+  local region = vim.region(0, init_select, end_select, "v", false)
   local replacement = {}
   for linenr = init_select[1], end_select[1] do
     local line = M.get_line(linenr, region[linenr][1], region[linenr][2])
@@ -79,7 +75,38 @@ function M.toggle_nvim_visual_mode(nvim_mode, direction)
 end
 
 ---@param direction boolean|nil
-function M.toggle_nvim_visual_block(direction)
+function M.toggle_nvim_visual_line_mode(direction)
+  local init_select_pos = vim.fn.getpos("v")
+  local end_select_pos = vim.fn.getpos(".")
+  if end_select_pos[2] < init_select_pos[2] then
+    init_select_pos, end_select_pos = end_select_pos, init_select_pos
+  end
+
+  local init_select = { init_select_pos[2], 0 }
+  local end_select = { end_select_pos[2], -1 }
+  local init_col_pos = 0
+  local end_col_pos = vim.api.nvim_strwidth(vim.fn.getline(end_select[1]))
+
+  local region = vim.region(0, init_select, end_select, "V", false)
+  local replacement = {}
+  for linenr = init_select[1], end_select[1] do
+    local line = M.get_line(linenr, region[linenr][1], region[linenr][2])
+    line = M.toggle_line(direction, line)
+    table.insert(replacement, line)
+  end
+
+  vim.api.nvim_buf_set_text(
+    0,
+    init_select[1] - 1,
+    init_col_pos,
+    end_select[1] - 1,
+    end_col_pos,
+    replacement
+  )
+end
+
+---@param direction boolean|nil
+function M.toggle_nvim_visual_block_mode(direction)
   local init_select = vim.fn.getpos("v")
   local end_select = vim.fn.getpos(".")
   if end_select[2] < init_select[2] then
@@ -190,10 +217,12 @@ function M.toggle(direction)
 
   if nvim_mode == "n" then
     M.toggle_nvim_normal_mode(direction)
+  elseif nvim_mode == "v" then
+    M.toggle_nvim_visual_mode(direction)
+  elseif nvim_mode == "V" then
+    M.toggle_nvim_visual_line_mode(direction)
   elseif nvim_mode == "" then
-    M.toggle_nvim_visual_block(direction)
-  else
-    M.toggle_nvim_visual_mode(nvim_mode, direction)
+    M.toggle_nvim_visual_block_mode(direction)
   end
 end
 
