@@ -34,7 +34,7 @@ local function feedkeys(keys, mode)
   )
 end
 
-describe("[N] Digit inline inc:", function()
+describe("[N] Digit inc:", function()
   before_each(function()
     clear_buffer()
     toggle.overwrite_builtins()
@@ -94,7 +94,7 @@ describe("[N] Digit inline inc:", function()
   end)
 end)
 
-describe("Visual mode:", function()
+describe("[V] Digit inc:", function()
   before_each(function()
     clear_buffer()
     toggle.overwrite_builtins()
@@ -108,7 +108,7 @@ describe("Visual mode:", function()
       fifth_line = !"#$%&/\`-100
     ]]
 
-  it("[visual-mode] Basic numbers increase. One line", function()
+  it("Basic numbers increase. One line", function()
     set_case(test_case, { 2, 0 })
     local expected = clean_text_format([[
       first_line = 99
@@ -126,7 +126,7 @@ describe("Visual mode:", function()
     assert.same(expected, output)
   end)
 
-  -- it("[visual-mode] Basic numbers increase. Three line", function()
+  -- it("Basic numbers increase. Three line", function()
   --   set_case(test_case, { 3, 0 })
   --   local expected = clean_text_format([[
   --     first_line = 99
@@ -143,9 +143,9 @@ describe("Visual mode:", function()
   --   local output = get_buffer_content()
   --   assert.same(expected, output)
   -- end)
-  --
-  it("[visual-mode] Basic numbers increase. Last line", function()
-    set_case(test_case, { 5, 0 })
+
+  it("Basic numbers increase. Last two lines", function()
+    set_case(test_case, { 4, 0 })
     local expected = clean_text_format([[
       first_line = 99
       second_line = "-1"
@@ -155,10 +155,25 @@ describe("Visual mode:", function()
     ]])
 
     toggle.overwrite_builtins()
-    feedkeys("v$", "n")
+    feedkeys("vj$", "n")
     feedkeys("<C-a>", "x")
 
     local output = get_buffer_content()
+    assert.same(expected, output)
+  end)
+end)
+
+describe("Cursor position:", function()
+  before_each(function()
+    clear_buffer()
+    toggle.overwrite_builtins()
+  end)
+
+  it("After col 0 inc", function()
+    set_case([[local foo, bar = 9, -1]])
+    local expected = { 1, 18 }
+    feedkeys("<C-a>")
+    local output = vim.api.nvim_win_get_cursor(0)
     assert.same(expected, output)
   end)
 end)
