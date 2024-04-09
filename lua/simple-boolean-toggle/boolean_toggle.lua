@@ -51,7 +51,7 @@ function M.toggle_nvim_visual_mode(direction)
   local init_col_pos = init_select[2] - 1
   local end_col_pos = end_select_pos[3]
 
-  local last_line_len = vim.api.nvim_strwidth(vim.fn.getline(end_select[1] - 1))
+  local last_line_len = vim.api.nvim_strwidth(vim.fn.getline(end_select[1]))
   if end_col_pos > last_line_len then
     end_col_pos = last_line_len
   end
@@ -76,33 +76,30 @@ end
 
 ---@param direction boolean|nil
 function M.toggle_nvim_visual_line_mode(direction)
-  local init_select_pos = vim.fn.getpos("v")
-  local end_select_pos = vim.fn.getpos(".")
-  if end_select_pos[2] < init_select_pos[2] then
-    init_select_pos, end_select_pos = end_select_pos, init_select_pos
+  local first_line = vim.fn.getpos("v")[2]
+  local last_line = vim.fn.getpos(".")[2]
+  if last_line < first_line then
+    first_line, last_line = last_line, first_line
   end
+  P("------------------------------------------------------")
+  P("first and last lines:", first_line, ",", last_line)
 
-  local init_select = { init_select_pos[2], 0 }
-  local end_select = { end_select_pos[2], -1 }
-  local init_col_pos = 0
-  local end_col_pos = vim.api.nvim_strwidth(vim.fn.getline(end_select[1]))
-
+  local init_select = { first_line, 0 }
+  local end_select = { last_line, -1 }
+  -- NOTE: vim.region modifies the passed position tables!
   local region = vim.region(0, init_select, end_select, "V", false)
+  P("region:", region)
+
   local replacement = {}
-  for linenr = init_select[1], end_select[1] do
+  for linenr = first_line, last_line do
     local line = M.get_line(linenr, region[linenr][1], region[linenr][2])
+    P(string.format('Line %d: "%s"', linenr, line))
     line = M.toggle_line(direction, line)
     table.insert(replacement, line)
   end
+  P("replacement:", replacement)
 
-  vim.api.nvim_buf_set_text(
-    0,
-    init_select[1] - 1,
-    init_col_pos,
-    end_select[1] - 1,
-    end_col_pos,
-    replacement
-  )
+  vim.api.nvim_buf_set_lines(0, first_line - 1, last_line, true, replacement)
 end
 
 ---@param direction boolean|nil
@@ -212,7 +209,7 @@ function M.toggle_nvim_normal_mode(direction)
   vim.api.nvim_win_set_cursor(0, original_position)
 end
 
-function M.toggle(direction)
+function M.toggle_dispatcher(direction)
   local nvim_mode = vim.api.nvim_get_mode().mode:sub(1, 1)
 
   if nvim_mode == "n" then
@@ -238,13 +235,13 @@ function M.overwrite_default_keys(silent)
   vim.keymap.set(
     { "n", "v" },
     "",
-    function() M.toggle(true) end,
+    function() M.toggle_dispatcher(true) end,
     { desc = "Boolean Toggle: Increment number/toggle boolean value." }
   )
   vim.keymap.set(
     { "n", "v" },
     "",
-    function() M.toggle(false) end,
+    function() M.toggle_dispatcher(false) end,
     { desc = "Boolean Toggle: Decrement number/toggle boolean value." }
   )
   if not silent then
