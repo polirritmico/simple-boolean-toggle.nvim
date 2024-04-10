@@ -7,6 +7,9 @@ local M = {}
 ---@type { [string]: string }
 M.booleans = {}
 
+M.winid = 0
+M.bufnr = 0
+
 ---Populates the inner `booleans` table with the base strings and the upper and
 ---lower case variants if they are enabled. The first boolean after the opposite
 ---string (the third element) means adding the uppercase and the last one adding
@@ -38,7 +41,7 @@ function M.get_line(linenr, left, right)
   end
 end
 
----@param direction boolean|nil
+---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_visual_mode(direction)
   local init_select_pos = vim.fn.getpos("v")
   local end_select_pos = vim.fn.getpos(".")
@@ -56,7 +59,7 @@ function M.toggle_nvim_visual_mode(direction)
     end_col_pos = last_line_len
   end
 
-  local region = vim.region(0, init_select, end_select, "v", false)
+  local region = vim.region(M.bufnr, init_select, end_select, "v", false)
   local replacement = {}
   for linenr = init_select[1], end_select[1] do
     local line = M.get_line(linenr, region[linenr][1], region[linenr][2])
@@ -65,7 +68,7 @@ function M.toggle_nvim_visual_mode(direction)
   end
 
   vim.api.nvim_buf_set_text(
-    0,
+    M.bufnr,
     init_select[1] - 1,
     init_col_pos,
     end_select[1] - 1,
@@ -74,35 +77,30 @@ function M.toggle_nvim_visual_mode(direction)
   )
 end
 
----@param direction boolean|nil
+---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_visual_line_mode(direction)
   local first_line = vim.fn.getpos("v")[2]
   local last_line = vim.fn.getpos(".")[2]
   if last_line < first_line then
     first_line, last_line = last_line, first_line
   end
-  P("------------------------------------------------------")
-  P("first and last lines:", first_line, ",", last_line)
 
   local init_select = { first_line, 0 }
   local end_select = { last_line, -1 }
   -- NOTE: vim.region modifies the passed position tables!
-  local region = vim.region(0, init_select, end_select, "V", false)
-  P("region:", region)
+  local region = vim.region(M.bufnr, init_select, end_select, "V", false)
 
   local replacement = {}
   for linenr = first_line, last_line do
     local line = M.get_line(linenr, region[linenr][1], region[linenr][2])
-    P(string.format('Line %d: "%s"', linenr, line))
     line = M.toggle_line(direction, line)
     table.insert(replacement, line)
   end
-  P("replacement:", replacement)
 
-  vim.api.nvim_buf_set_lines(0, first_line - 1, last_line, true, replacement)
+  vim.api.nvim_buf_set_lines(M.bufnr, first_line - 1, last_line, true, replacement)
 end
 
----@param direction boolean|nil
+---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_visual_block_mode(direction)
   local init_select = vim.fn.getpos("v")
   local end_select = vim.fn.getpos(".")
@@ -119,7 +117,7 @@ function M.toggle_nvim_visual_block_mode(direction)
     local line_width = vim.api.nvim_strwidth(vim.fn.getline(linenr))
     local end_col_line = line_width < end_col and line_width or end_col
     vim.api.nvim_buf_set_text(
-      0,
+      M.bufnr,
       linenr - 1,
       init_col - 1,
       linenr - 1,
@@ -168,8 +166,9 @@ function M.builtin_call(direction, cmd_count)
   end
 end
 
+---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_normal_mode(direction)
-  local original_position = vim.api.nvim_win_get_cursor(0)
+  local original_position = vim.api.nvim_win_get_cursor(M.winid)
   local line = vim.api.nvim_get_current_line()
   local line_size = vim.fn.strlen(line)
 
@@ -180,7 +179,7 @@ function M.toggle_nvim_normal_mode(direction)
   local cword = ""
 
   local function update_vars_to_cursor_position()
-    local current_pos = vim.api.nvim_win_get_cursor(0)
+    local current_pos = vim.api.nvim_win_get_cursor(M.winid)
     current_line = current_pos[1]
     current_char_pos = current_pos[2]
     curstr = vim.fn.matchstr(line, "\\k*", current_char_pos)
@@ -188,7 +187,12 @@ function M.toggle_nvim_normal_mode(direction)
   end
 
   update_vars_to_cursor_position()
+  local failsafe = 0
   while current_char_pos + 1 <= line_size and current_line == original_position[1] do
+    failsafe = failsafe + 1
+    if failsafe == 512 then
+      return
+    end
     -- check for numbers:
     if direction ~= nil and (tonumber(cword) or string.match(cword, "%d") ~= nil) then
       M.builtin_call(direction, cmd_count)
@@ -206,9 +210,10 @@ function M.toggle_nvim_normal_mode(direction)
     vim.cmd("normal! w")
     update_vars_to_cursor_position()
   end
-  vim.api.nvim_win_set_cursor(0, original_position)
+  vim.api.nvim_win_set_cursor(M.winid, original_position)
 end
 
+---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_dispatcher(direction)
   local nvim_mode = vim.api.nvim_get_mode().mode:sub(1, 1)
 
@@ -232,6 +237,7 @@ function M.overwrite_default_keys(silent)
     return
   end
   overwriten_builtins = true
+  -- stylua: ignore start
   vim.keymap.set(
     { "n", "v" },
     "",
@@ -244,6 +250,7 @@ function M.overwrite_default_keys(silent)
     function() M.toggle_dispatcher(false) end,
     { desc = "Boolean Toggle: Decrement number/toggle boolean value." }
   )
+  -- stylua: ignore end
   if not silent then
     vim.notify("[Boolean Toggle]: Enabled", vim.log.levels.INFO)
   end
