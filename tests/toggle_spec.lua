@@ -1,179 +1,71 @@
--- Test
--- NOTE: local functions use lines 1-index and cols 0-indexed
+local sbt = require("simple-boolean-toggle.boolean_toggle")
+local h = require("tests.helpers")
 
-local toggle = require("simple-boolean-toggle")
+sbt.generate_booleans({ { "True", "False" } })
+local winid, bufnr
 
-local function clear_buffer() vim.api.nvim_buf_set_lines(1, 0, -1, false, {}) end
-local function get_buffer_content() return vim.api.nvim_buf_get_lines(1, 0, -1, false) end
-
----@param text string
----@return table<string>
-local function clean_text_format(text)
-  local lines = vim.split(vim.trim(text), "\n")
-  lines = vim.tbl_map(function(line) return vim.trim(line) end, lines)
-  return lines
-end
-
----Set the a clean buffer with the text content at the cursor position
----@param text string
----@param position table<integer, integer>? {line (1-idx), col (0-idx)}. Defaults to { 1, 0 }
-local function set_case(text, position)
-  position = position and { position[1], position[2] } or { 1, 0 }
-  local lines = clean_text_format(text)
-  vim.api.nvim_buf_set_lines(1, 0, -1, false, lines)
-  vim.api.nvim_win_set_cursor(0, position)
-end
-
----@param keys string keys to be _pressed_, e.g. "j", "4j", "4j<CR>", etc.
----@param mode string? Note: Defaults to "x". Use "n" to move, "x" to modify content.
-local function feedkeys(keys, mode)
-  vim.api.nvim_feedkeys(
-    vim.api.nvim_replace_termcodes(keys, true, true, true),
-    mode or "x",
-    true
-  )
-end
-
-describe("[N] Digit inc:", function()
+describe("Normal mode:", function()
   before_each(function()
-    clear_buffer()
-    toggle.overwrite_builtins()
+    winid = vim.api.nvim_get_current_win()
+    bufnr = vim.api.nvim_create_buf(false, true)
+    sbt.winid = winid
+    sbt.bufnr = bufnr
+    vim.api.nvim_win_set_buf(winid, bufnr)
   end)
 
-  it("At col 0", function()
-    set_case([[local foo, bar = 9, -1]])
+  after_each(function()
+    h.clear_buffer(bufnr)
+  end)
+
+  it("At col 0 inc digit", function()
+    local case = [[local foo, bar = 9, -1]]
     local expected = { [[local foo, bar = 10, -1]] }
-    feedkeys("<C-a>")
-    local output = get_buffer_content()
+    h.set_case(bufnr, winid, case)
+
+    sbt.toggle_nvim_normal_mode(true)
+
+    local output = h.get_buffer_content(bufnr)
     assert.same(expected, output)
   end)
 
-  it("At first digit position", function()
-    set_case([[local foo, bar = 9, -1]], { 1, 18 })
-    local expected = { [[local foo, bar = 9, 0]] }
-    feedkeys("<C-a>")
-    local output = get_buffer_content()
+  it("At col 0 dec digit", function()
+    local case = [[local foo, bar = 10, -1]]
+    local expected = { [[local foo, bar = 9, -1]] }
+    h.set_case(bufnr, winid, case)
+
+    sbt.toggle_nvim_normal_mode(false)
+
+    local output = h.get_buffer_content(bufnr)
     assert.same(expected, output)
   end)
 
-  it("After first digit", function()
-    set_case([[local foo, bar = 9, -1, 1]], { 1, 18 })
-    local expected = { [[local foo, bar = 9, 0, 1]] }
-    feedkeys("<C-a>")
-    local output = get_buffer_content()
+  it("At col 0 toggle boolean", function()
+    local case = [[local foo = false]]
+    local expected = { [[local foo = true]] }
+    h.set_case(bufnr, winid, case)
+
+    sbt.toggle_nvim_normal_mode()
+
+    local output = h.get_buffer_content(bufnr)
     assert.same(expected, output)
   end)
 
-  it("At last col", function()
-    set_case([[local foo, bar = 9, -1, 1]], { 1, 24 })
-    local expected = { [[local foo, bar = 9, -1, 2]] }
-    feedkeys("<C-a>")
-    local output = get_buffer_content()
-    assert.same(expected, output)
-  end)
-
-  it("In lines", function()
-    set_case([[
-      first_line = 99
-      second_line = "-1"
-      third_line = 99, 100
-      fourth_line = true
-      fifth_line = !"#$%&/\`-100
-    ]])
-    local expected = clean_text_format([[
-      first_line = 100
-      second_line = "0"
-      third_line = 100, 100
-      fourth_line = true
-      fifth_line = !"#$%&/\`-99
-    ]])
-    feedkeys("<C-a>j<C-a>j0<C-a>j0<C-a>j0<C-a>", "x")
-
-    local output = get_buffer_content()
-    assert.same(expected, output)
-  end)
-end)
-
-describe("[V] Digit inc:", function()
-  before_each(function()
-    clear_buffer()
-    toggle.overwrite_builtins()
-  end)
-
-  local test_case = [[
-      first_line = 99
-      second_line = "-1"
-      third_line = 99, 100
-      fourth_line = true
-      fifth_line = !"#$%&/\`-100
+  it("At col 0 inc/dec negative numbers", function()
+    local case = [[
+      foo = -1
+      bar = 1
     ]]
-
-  it("Basic numbers increase. One line", function()
-    set_case(test_case, { 2, 0 })
-    local expected = clean_text_format([[
-      first_line = 99
-      second_line = "0"
-      third_line = 99, 100
-      fourth_line = true
-      fifth_line = !"#$%&/\`-100
+    local expected = h.clean_text_format([[
+      foo = 0
+      bar = 0
     ]])
+    h.set_case(bufnr, winid, case)
 
-    toggle.overwrite_builtins()
-    feedkeys("v$", "n")
-    feedkeys("<C-a>", "x")
+    sbt.toggle_nvim_normal_mode(true)
+    h.feedkeys("j0")
+    sbt.toggle_nvim_normal_mode(false)
 
-    local output = get_buffer_content()
-    assert.same(expected, output)
-  end)
-
-  -- it("Basic numbers increase. Three line", function()
-  --   set_case(test_case, { 3, 0 })
-  --   local expected = clean_text_format([[
-  --     first_line = 99
-  --     second_line = "0"
-  --     third_line = 100, 100
-  --     fourth_line = !"#$%&/\`-99
-  --     fifth_line = true
-  --   ]])
-  --
-  --   toggle.overwrite_builtins()
-  --   feedkeys("jj$", "v")
-  --   feedkeys("<C-a>", "x")
-  --
-  --   local output = get_buffer_content()
-  --   assert.same(expected, output)
-  -- end)
-
-  it("Basic numbers increase. Last two lines", function()
-    set_case(test_case, { 4, 0 })
-    local expected = clean_text_format([[
-      first_line = 99
-      second_line = "-1"
-      third_line = 99, 100
-      fourth_line = true
-      fifth_line = !"#$%&/\`-99
-    ]])
-
-    toggle.overwrite_builtins()
-    feedkeys("vj$", "n")
-    feedkeys("<C-a>", "x")
-
-    local output = get_buffer_content()
-    assert.same(expected, output)
-  end)
-end)
-
-describe("Cursor position:", function()
-  before_each(function()
-    clear_buffer()
-    toggle.overwrite_builtins()
-  end)
-
-  it("After col 0 inc", function()
-    set_case([[local foo, bar = 9, -1]])
-    local expected = { 1, 18 }
-    feedkeys("<C-a>")
-    local output = vim.api.nvim_win_get_cursor(0)
+    local output = h.get_buffer_content(bufnr)
     assert.same(expected, output)
   end)
 end)
