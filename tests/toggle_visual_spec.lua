@@ -17,7 +17,7 @@ describe("Visual mode:", function()
     h.clear_buffer(bufnr)
   end)
 
-  it("First line", function()
+  it("Full first line", function()
     local case = [[
       local foo, bar = 9, true, -1
       local unchanged = false
@@ -33,7 +33,7 @@ describe("Visual mode:", function()
     assert.same(expected, output)
   end)
 
-  it("Second line", function()
+  it("Full second line", function()
     local case = [[
       local foo, bar = 9, true, -1
       local unchanged = false
@@ -51,7 +51,7 @@ describe("Visual mode:", function()
     assert.same(expected, output)
   end)
 
-  it("End line", function()
+  it("Full last line", function()
     local case = [[
       local foo, bar = 9, true, -1
       local unchanged = false
@@ -64,6 +64,78 @@ describe("Visual mode:", function()
     ]])
     h.set_case(bufnr, winid, case, { 3, 0 })
     h.feedkeys("v$")
+    sbt.toggle_nvim_visual_mode(true)
+    local output = h.get_buffer_content(bufnr)
+    assert.same(expected, output)
+  end)
+
+  it("Select partial boolean", function()
+    local case = [[
+      local foo, bar = 9, true, -1
+      local unchanged = false
+    ]]
+    local expected = h.clean_text_format([[
+      local foo, bar = 9, true, -1
+      local unchanged = false
+    ]])
+    h.set_case(bufnr, winid, case, { 1, 21 })
+    h.feedkeys("v2l")
+    sbt.toggle_nvim_visual_mode(true)
+    local output = h.get_buffer_content(bufnr)
+    assert.same(expected, output)
+  end)
+
+  it("Select boolean", function()
+    local case = [[
+      local foo, bar = 9, true, -1
+      local unchanged = false
+    ]]
+    local expected = h.clean_text_format([[
+      local foo, bar = 9, false, -1
+      local unchanged = false
+    ]])
+    h.set_case(bufnr, winid, case, { 1, 18 })
+    h.feedkeys("vf,")
+    sbt.toggle_nvim_visual_mode(true)
+    local output = h.get_buffer_content(bufnr)
+    assert.same(expected, output)
+  end)
+
+  it("Select booleans in two lines", function()
+    local case = [[
+      line = true, 99
+      line = false, 99
+      foo = true, -99
+      bar = true, 99
+    ]]
+    local expected = h.clean_text_format([[
+      line = false, 99
+      line = true, 99
+      foo = true, -99
+      bar = true, 99
+    ]])
+    h.set_case(bufnr, winid, case, { 1, 7 })
+    h.feedkeys("vjw")
+    sbt.toggle_nvim_visual_mode(true)
+    local output = h.get_buffer_content(bufnr)
+    assert.same(expected, output)
+  end)
+
+  it("Select negative with and without minus", function()
+    local case = [[
+      line = false, 99
+      foo = true, -100
+      bar = some, -100
+      buz = 0
+    ]]
+    local expected = h.clean_text_format([[
+      line = false, 99
+      foo = true, -101
+      bar = some, -99
+      buz = 0
+    ]])
+    h.set_case(bufnr, winid, case, { 2, 13 })
+    h.feedkeys("vj$")
     sbt.toggle_nvim_visual_mode(true)
     local output = h.get_buffer_content(bufnr)
     assert.same(expected, output)
