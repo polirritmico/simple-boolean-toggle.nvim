@@ -3,7 +3,7 @@
 ## TODO
 
 - [x] v mode toggle
-- [ ] V mode toggle
+- [x] V mode toggle
 - [ ] \\22 mode toggle
 - [ ] Document limitations (non space in booleans, only alphanumeric)
 

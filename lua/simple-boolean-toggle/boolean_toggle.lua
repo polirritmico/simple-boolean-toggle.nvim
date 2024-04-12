@@ -16,8 +16,8 @@ M.bufnr = 0
 --- position (for example, |linewise| visual selection) is returned as |v:maxcol| (big number).
 ---
 ---@param bufnr integer Buffer number, or 0 for current buffer
----@param pos1 integer[]|string Start of region as a (line, column) tuple or |getpos()|-compatible string
----@param pos2 integer[]|string End of region as a (line, column) tuple or |getpos()|-compatible string
+---@param _pos1 integer[]|string Start of region as a (line, column) tuple or |getpos()|-compatible string
+---@param _pos2 integer[]|string End of region as a (line, column) tuple or |getpos()|-compatible string
 ---@param regtype string [setreg()]-style selection type
 ---@param inclusive boolean Controls whether the ending column is inclusive (see also 'selection').
 ---@return table region Dict of the form `{linenr = {startcol,endcol}}`. `endcol` is exclusive, and
@@ -187,51 +187,66 @@ end
 
 ---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_visual_line_mode(direction)
-  local first_line = vim.fn.getpos("v")[2]
-  local last_line = vim.fn.getpos(".")[2]
-  if last_line < first_line then
-    first_line, last_line = last_line, first_line
+  local lnum_from = vim.fn.getpos("v")[2]
+  local lnum_to = vim.fn.getpos(".")[2]
+  -- Could be selected from bottom to top
+  if lnum_to < lnum_from then
+    lnum_from, lnum_to = lnum_to, lnum_from
   end
 
-  local init_select = { first_line, 0 }
-  local end_select = { last_line, -1 }
-  -- NOTE: vim.region modifies the passed position tables!
-  local region = vim.region(M.bufnr, init_select, end_select, "V", false)
-
   local replacement = {}
-  for linenr = first_line, last_line do
-    local line = M.get_line(linenr, region[linenr][1], region[linenr][2])
+  for linenr = lnum_from, lnum_to do
+    local line = vim.fn.getline(linenr)
     line = M.toggle_line(direction, line)
     table.insert(replacement, line)
   end
 
-  vim.api.nvim_buf_set_lines(M.bufnr, first_line - 1, last_line, true, replacement)
+  vim.api.nvim_buf_set_lines(M.bufnr, lnum_from - 1, lnum_to, true, replacement)
 end
 
 ---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_visual_block_mode(direction)
-  local init_select = vim.fn.getpos("v")
-  local end_select = vim.fn.getpos(".")
-  if end_select[2] < init_select[2] then
-    init_select, end_select = end_select, init_select
+  -- col and line 1-idx
+  local selected_from = vim.fn.getpos("v")
+  local selected_to = vim.fn.getpos(".")
+
+  ---@type integer, integer, integer, integer
+  local lnum_from, lnum_to, col_from, col_to
+
+  -- Selection could be "normal", same line or inverted (right to left and/or bottom to top)
+  if selected_from[2] < selected_to[2] then
+    lnum_from, lnum_to = selected_from[2], selected_to[2]
+    col_from, col_to = selected_from[3], selected_to[3]
+  elseif selected_from[2] > selected_to[2] then
+    lnum_from, lnum_to = selected_to[2], selected_from[2]
+    col_from, col_to = selected_to[3], selected_from[3]
+  elseif selected_from[2] == selected_to[2] then
+    lnum_from, lnum_to = selected_from[2], selected_to[2]
+    if selected_from[3] < selected_to[3] then
+      col_from, col_to = selected_from[3], selected_to[3]
+    else
+      col_from, col_to = selected_to[3], selected_from[3]
+    end
   end
-  local init_col = init_select[3]
-  local end_col = end_select[3]
 
-  for linenr = init_select[2], end_select[2] do
-    local original_region = M.get_line(linenr, init_col, end_col)
-    local replacement = M.toggle_line(direction, original_region)
+  for linenr = lnum_from, lnum_to do
+    local line = vim.fn.getline(linenr)
+    local line_width = vim.api.nvim_strwidth(line)
+    local line_col_to = col_to > line_width and line_width or col_to
 
-    local line_width = vim.api.nvim_strwidth(vim.fn.getline(linenr))
-    local end_col_line = line_width < end_col and line_width or end_col
-    vim.api.nvim_buf_set_text(
-      M.bufnr,
-      linenr - 1,
-      init_col - 1,
-      linenr - 1,
-      end_col_line,
-      { replacement }
-    )
+    local region = line:sub(col_from, line_col_to)
+    if region ~= "" then
+      local replacement = { M.toggle_line(direction, region) }
+
+      vim.api.nvim_buf_set_text(
+        M.bufnr,
+        linenr - 1,
+        col_from - 1,
+        linenr - 1,
+        line_col_to,
+        replacement
+      )
+    end
   end
 end
 
