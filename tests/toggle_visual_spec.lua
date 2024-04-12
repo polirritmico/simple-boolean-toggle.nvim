@@ -69,6 +69,58 @@ describe("Visual mode:", function()
     assert.same(expected, output)
   end)
 
+  it("Full first line (rev)", function()
+    local case = [[
+      local foo, bar = 9, true, -1
+      local unchanged = false
+    ]]
+    local expected = h.clean_text_format([[
+      local foo, bar = 10, true, -1
+      local unchanged = false
+    ]])
+    h.set_case(bufnr, winid, case)
+    h.feedkeys("$v0")
+    sbt.toggle_nvim_visual_mode(true)
+    local output = h.get_buffer_content(bufnr)
+    assert.same(expected, output)
+  end)
+
+  it("Full second line (rev)", function()
+    local case = [[
+      local foo, bar = 9, true, -1
+      local unchanged = false
+      endline = true
+    ]]
+    local expected = h.clean_text_format([[
+      local foo, bar = 9, true, -1
+      local unchanged = true
+      endline = true
+    ]])
+    h.set_case(bufnr, winid, case, { 2, 0 })
+    h.feedkeys("$v0")
+    sbt.toggle_nvim_visual_mode(true)
+    local output = h.get_buffer_content(bufnr)
+    assert.same(expected, output)
+  end)
+
+  it("Full last line (rev)", function()
+    local case = [[
+      local foo, bar = 9, true, -1
+      local unchanged = false
+      endline = true
+    ]]
+    local expected = h.clean_text_format([[
+      local foo, bar = 9, true, -1
+      local unchanged = false
+      endline = false
+    ]])
+    h.set_case(bufnr, winid, case, { 3, 0 })
+    h.feedkeys("$v0")
+    sbt.toggle_nvim_visual_mode(true)
+    local output = h.get_buffer_content(bufnr)
+    assert.same(expected, output)
+  end)
+
   it("Select partial boolean", function()
     local case = [[
       local foo, bar = 9, true, -1
@@ -85,6 +137,22 @@ describe("Visual mode:", function()
     assert.same(expected, output)
   end)
 
+  it("Select partial boolean (rev)", function()
+    local case = [[
+      local foo, bar = 9, true, -1
+      local unchanged = false
+    ]]
+    local expected = h.clean_text_format([[
+      local foo, bar = 9, true, -1
+      local unchanged = false
+    ]])
+    h.set_case(bufnr, winid, case, { 1, 23 })
+    h.feedkeys("v2h")
+    sbt.toggle_nvim_visual_mode(true)
+    local output = h.get_buffer_content(bufnr)
+    assert.same(expected, output)
+  end)
+
   it("Select boolean", function()
     local case = [[
       local foo, bar = 9, true, -1
@@ -96,6 +164,22 @@ describe("Visual mode:", function()
     ]])
     h.set_case(bufnr, winid, case, { 1, 18 })
     h.feedkeys("vf,")
+    sbt.toggle_nvim_visual_mode(true)
+    local output = h.get_buffer_content(bufnr)
+    assert.same(expected, output)
+  end)
+
+  it("Select boolean (rev)", function()
+    local case = [[
+      local foo, bar = 9, true, -1
+      local unchanged = false
+    ]]
+    local expected = h.clean_text_format([[
+      local foo, bar = 9, false, -1
+      local unchanged = false
+    ]])
+    h.set_case(bufnr, winid, case, { 1, 26 })
+    h.feedkeys("vbbh")
     sbt.toggle_nvim_visual_mode(true)
     local output = h.get_buffer_content(bufnr)
     assert.same(expected, output)

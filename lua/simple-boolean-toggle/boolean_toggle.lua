@@ -10,6 +10,93 @@ M.booleans = {}
 M.winid = 0
 M.bufnr = 0
 
+--- Gets a dict of line segment ("chunk") positions for the region from `pos1` to `pos2`.
+---
+--- Input and output positions are byte positions, (0,0)-indexed. "End of line" column
+--- position (for example, |linewise| visual selection) is returned as |v:maxcol| (big number).
+---
+---@param bufnr integer Buffer number, or 0 for current buffer
+---@param pos1 integer[]|string Start of region as a (line, column) tuple or |getpos()|-compatible string
+---@param pos2 integer[]|string End of region as a (line, column) tuple or |getpos()|-compatible string
+---@param regtype string [setreg()]-style selection type
+---@param inclusive boolean Controls whether the ending column is inclusive (see also 'selection').
+---@return table region Dict of the form `{linenr = {startcol,endcol}}`. `endcol` is exclusive, and
+---whole lines are returned as `{startcol,endcol} = {0,-1}`.
+function M.region(bufnr, _pos1, _pos2, regtype, inclusive)
+  if not vim.api.nvim_buf_is_loaded(bufnr) then
+    vim.fn.bufload(bufnr)
+  end
+
+  local pos1 = vim.deepcopy(_pos1)
+  local pos2 = vim.deepcopy(_pos2)
+
+  if type(pos1) == "string" then
+    local pos = vim.fn.getpos(pos1)
+    pos1 = { pos[2] - 1, pos[3] - 1 }
+  end
+  if type(pos2) == "string" then
+    local pos = vim.fn.getpos(pos2)
+    pos2 = { pos[2] - 1, pos[3] - 1 }
+  end
+
+  if pos1[1] > pos2[1] or (pos1[1] == pos2[1] and pos1[2] > pos2[2]) then
+    pos1, pos2 = pos2, pos1
+  end
+
+  -- getpos() may return {0,0,0,0}
+  if pos1[1] < 0 or pos1[2] < 0 then
+    return {}
+  end
+
+  -- check that region falls within current buffer
+  local buf_line_count = vim.api.nvim_buf_line_count(bufnr)
+  pos1[1] = math.min(pos1[1], buf_line_count - 1)
+  pos2[1] = math.min(pos2[1], buf_line_count - 1)
+
+  -- in case of block selection, columns need to be adjusted for non-ASCII characters
+  -- TODO: handle double-width characters
+  if regtype:byte() == 22 then
+    local bufline = vim.api.nvim_buf_get_lines(bufnr, pos1[1], pos1[1] + 1, true)[1]
+    pos1[2] = vim.str_utfindex(bufline, pos1[2])
+  end
+
+  local region = {}
+  for l = pos1[1], pos2[1] do
+    local c1 --- @type number
+    local c2 --- @type number
+    if regtype:byte() == 22 then -- block selection: take width from regtype
+      c1 = pos1[2]
+      c2 = c1 + tonumber(regtype:sub(2))
+      -- and adjust for non-ASCII characters
+      local bufline = vim.api.nvim_buf_get_lines(bufnr, l, l + 1, true)[1]
+      local utflen = vim.str_utfindex(bufline, #bufline)
+      if c1 <= utflen then
+        c1 = assert(tonumber(vim.str_byteindex(bufline, c1)))
+      else
+        c1 = #bufline + 1
+      end
+      if c2 <= utflen then
+        c2 = assert(tonumber(vim.str_byteindex(bufline, c2)))
+      else
+        c2 = #bufline + 1
+      end
+    elseif regtype == "V" then -- linewise selection, always return whole line
+      c1 = 0
+      c2 = -1
+    else
+      c1 = (l == pos1[1]) and pos1[2] or 0
+      if inclusive and l == pos2[1] then
+        local bufline = vim.api.nvim_buf_get_lines(bufnr, pos2[1], pos2[1] + 1, true)[1]
+        pos2[2] = vim.fn.byteidx(bufline, vim.fn.charidx(bufline, pos2[2]) + 1)
+      end
+      c2 = (l == pos2[1]) and pos2[2] or -1
+      -- c2 = pos2[2]
+    end
+    table.insert(region, l, { c1, c2 })
+  end
+  return region
+end
+
 ---Populates the inner `booleans` table with the base strings and the upper and
 ---lower case variants if they are enabled. The first boolean after the opposite
 ---string (the third element) means adding the uppercase and the last one adding
@@ -31,48 +118,69 @@ function M.generate_booleans(base_booleans)
   end
 end
 
+---Get the line region based from the output of `vim.region`
+---@param linenr integer 1-index
+---@param left integer 0-index
+---@param right integer 0-index, values -1 and 0 return the full line
 function M.get_line(linenr, left, right)
   if left == 0 and right == -1 then
     return vim.fn.getline(linenr)
-  elseif left == 0 then
-    return vim.fn.getline(linenr):sub(1, right)
+  elseif right == -1 then
+    return vim.fn.getline(linenr):sub(left + 1)
   else
-    return vim.fn.getline(linenr):sub(left, right)
+    return vim.fn.getline(linenr):sub(left + 1, right + 1)
   end
 end
 
 ---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_visual_mode(direction)
-  local init_select_pos = vim.fn.getpos("v")
-  local end_select_pos = vim.fn.getpos(".")
-  if end_select_pos[2] < init_select_pos[2] then
-    init_select_pos, end_select_pos = end_select_pos, init_select_pos
+  -- nvim_win_get_cursor output: [1] line (1-idx), [2] col (0-idx)
+  local selected_to = vim.api.nvim_win_get_cursor(M.winid)
+  vim.api.nvim_feedkeys("o", "x", true)
+  local selected_from = vim.api.nvim_win_get_cursor(M.winid)
+  vim.api.nvim_feedkeys("o", "x", true)
+
+  ---@type integer, integer, integer, integer
+  local lnum_from, lnum_to, col_from, col_to
+
+  -- Selection could be "normal", same line or inverted (right to left and/or bottom to top)
+  if selected_from[1] < selected_to[1] then
+    lnum_from, lnum_to = selected_from[1], selected_to[1]
+    col_from, col_to = selected_from[2], selected_to[2]
+  elseif selected_from[1] > selected_to[1] then
+    lnum_from, lnum_to = selected_to[1], selected_from[1]
+    col_from, col_to = selected_to[2], selected_from[2]
+  elseif selected_from[1] == selected_to[1] then
+    lnum_from, lnum_to = selected_from[1], selected_to[1]
+    if selected_from[2] < selected_to[2] then
+      col_from, col_to = selected_from[2], selected_to[2]
+    else
+      col_from, col_to = selected_to[2], selected_from[2]
+    end
   end
 
-  local init_select = { init_select_pos[2], init_select_pos[3] }
-  local end_select = { end_select_pos[2], end_select_pos[3] }
-  local init_col_pos = init_select[2] - 1
-  local end_col_pos = end_select_pos[3]
+  -- region input/output are 0-idx for lines and cols
+  local _pos1, _pos2 = { lnum_from - 1, col_from }, { lnum_to - 1, col_to }
+  local region = vim.region(M.bufnr, _pos1, _pos2, "v", false)
 
-  local last_line_len = vim.api.nvim_strwidth(vim.fn.getline(end_select[1]))
-  if end_col_pos > last_line_len then
-    end_col_pos = last_line_len
-  end
-
-  local region = vim.region(M.bufnr, init_select, end_select, "v", false)
   local replacement = {}
-  for linenr = init_select[1], end_select[1] do
-    local line = M.get_line(linenr, region[linenr][1], region[linenr][2])
+  for linenr = lnum_from, lnum_to do
+    local line = M.get_line(linenr, region[linenr - 1][1], region[linenr - 1][2])
     line = M.toggle_line(direction, line)
     table.insert(replacement, line)
   end
 
+  -- col_to needs to be adjusted when the cursor is outside the last line width of the selection
+  local last_select_line_width = vim.api.nvim_strwidth(vim.fn.getline(lnum_to))
+  col_to = col_to + 1 > last_select_line_width and last_select_line_width or col_to + 1
+
+  -- 0-idx. lines are end-inclusive, and cols idx are end-exclusive.
   vim.api.nvim_buf_set_text(
     M.bufnr,
-    init_select[1] - 1,
-    init_col_pos,
-    end_select[1] - 1,
-    end_col_pos,
+    lnum_from - 1,
+    col_from,
+    lnum_to - 1,
+    col_to,
     replacement
   )
 end
