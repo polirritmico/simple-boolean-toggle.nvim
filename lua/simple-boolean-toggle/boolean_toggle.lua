@@ -206,28 +206,18 @@ end
 
 ---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_visual_block_mode(direction)
-  -- col and line 1-idx
-  local selected_from = vim.fn.getpos("v")
-  local selected_to = vim.fn.getpos(".")
+  -- col and line are 1-idx
+  local select_from = vim.fn.getpos("v")
+  local select_to = vim.fn.getpos(".")
 
   ---@type integer, integer, integer, integer
   local lnum_from, lnum_to, col_from, col_to
 
-  -- Selection could be "normal", same line or inverted (right to left and/or bottom to top)
-  if selected_from[2] < selected_to[2] then
-    lnum_from, lnum_to = selected_from[2], selected_to[2]
-    col_from, col_to = selected_from[3], selected_to[3]
-  elseif selected_from[2] > selected_to[2] then
-    lnum_from, lnum_to = selected_to[2], selected_from[2]
-    col_from, col_to = selected_to[3], selected_from[3]
-  elseif selected_from[2] == selected_to[2] then
-    lnum_from, lnum_to = selected_from[2], selected_to[2]
-    if selected_from[3] < selected_to[3] then
-      col_from, col_to = selected_from[3], selected_to[3]
-    else
-      col_from, col_to = selected_to[3], selected_from[3]
-    end
-  end
+  -- Order selection coords from top to btm and left to right
+  lnum_from = select_from[2] < select_to[2] and select_from[2] or select_to[2]
+  lnum_to = select_from[2] < select_to[2] and select_to[2] or select_from[2]
+  col_from = select_from[3] < select_to[3] and select_from[3] or select_to[3]
+  col_to = select_from[3] < select_to[3] and select_to[3] or select_from[3]
 
   for linenr = lnum_from, lnum_to do
     local line = vim.fn.getline(linenr)
