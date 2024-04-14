@@ -170,9 +170,23 @@ function M.toggle_nvim_visual_mode(direction)
     table.insert(replacement, line)
   end
 
-  -- col_to needs to be adjusted when the cursor is outside the last line width of the selection
-  local last_select_line_width = vim.api.nvim_strwidth(vim.fn.getline(lnum_to))
-  col_to = col_to + 1 > last_select_line_width and last_select_line_width or col_to + 1
+  local last_line_str = vim.fn.getline(lnum_to)
+  local last_select_line_width = vim.api.nvim_strwidth(last_line_str)
+
+  -- when using multi-byte characters the width of the col_to needs to be adjusted
+  local offset = M.get_offset(last_line_str, region[lnum_to - 1][1], col_to)
+  P(offset)
+
+  -- To avoid errors col_to needs to be adjusted when the cursor is outside the
+  -- last line width.
+  -- if offset.left == 0 then
+  --   col_to = math.min(col_to + 1, last_select_line_width)
+  -- else
+  --   col_to = col_to + offset.left + offset.right
+  -- end
+
+  col_to = math.min(col_to + 1, last_select_line_width)
+  col_to = col_to + offset.left
 
   -- 0-idx. lines are end-inclusive, and cols idx are end-exclusive.
   vim.api.nvim_buf_set_text(
@@ -183,6 +197,33 @@ function M.toggle_nvim_visual_mode(direction)
     col_to,
     replacement
   )
+end
+
+---@param line string
+---@param col_from integer
+---@param col_to integer
+---@return { left: integer, right: integer } -- left/right: text to the left/right, outside the selection
+function M.get_offset(line, col_from, col_to)
+  local line_width = vim.api.nvim_strwidth(line)
+  local line_width_lua = string.len(line)
+  if line_width_lua - line_width == 0 then
+    return { left = 0, right = 0 }
+  end
+
+  local function section_offset(left, right)
+    local subline = line:sub(left, right)
+    local width = vim.api.nvim_strwidth(subline)
+    local bytes = string.len(subline)
+    return bytes - width
+  end
+
+  local before_offset = col_from > 1 and section_offset(1, col_from) or 0
+  local inner_offset = section_offset(col_from, col_to)
+  -- TODO: Remove after?
+  local after_offset = col_to ~= line_width and section_offset(col_to, line_width) or 0
+
+  assert(line_width + before_offset + inner_offset + after_offset == line_width_lua)
+  return { left = before_offset, right = inner_offset }
 end
 
 ---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
