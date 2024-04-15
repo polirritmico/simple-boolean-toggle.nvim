@@ -1,3 +1,7 @@
+---@class Selection
+---@field from { line: integer, col: integer }
+---@field to { line: integer, col: integer }
+
 ---@class SimpleBooleanToggle
 local M = {}
 
@@ -9,93 +13,6 @@ M.booleans = {}
 
 M.winid = 0
 M.bufnr = 0
-
---- Gets a dict of line segment ("chunk") positions for the region from `pos1` to `pos2`.
----
---- Input and output positions are byte positions, (0,0)-indexed. "End of line" column
---- position (for example, |linewise| visual selection) is returned as |v:maxcol| (big number).
----
----@param bufnr integer Buffer number, or 0 for current buffer
----@param _pos1 integer[]|string Start of region as a (line, column) tuple or |getpos()|-compatible string
----@param _pos2 integer[]|string End of region as a (line, column) tuple or |getpos()|-compatible string
----@param regtype string [setreg()]-style selection type
----@param inclusive boolean Controls whether the ending column is inclusive (see also 'selection').
----@return table region Dict of the form `{linenr = {startcol,endcol}}`. `endcol` is exclusive, and
----whole lines are returned as `{startcol,endcol} = {0,-1}`.
-function M.region(bufnr, _pos1, _pos2, regtype, inclusive)
-  if not vim.api.nvim_buf_is_loaded(bufnr) then
-    vim.fn.bufload(bufnr)
-  end
-
-  local pos1 = vim.deepcopy(_pos1)
-  local pos2 = vim.deepcopy(_pos2)
-
-  if type(pos1) == "string" then
-    local pos = vim.fn.getpos(pos1)
-    pos1 = { pos[2] - 1, pos[3] - 1 }
-  end
-  if type(pos2) == "string" then
-    local pos = vim.fn.getpos(pos2)
-    pos2 = { pos[2] - 1, pos[3] - 1 }
-  end
-
-  if pos1[1] > pos2[1] or (pos1[1] == pos2[1] and pos1[2] > pos2[2]) then
-    pos1, pos2 = pos2, pos1
-  end
-
-  -- getpos() may return {0,0,0,0}
-  if pos1[1] < 0 or pos1[2] < 0 then
-    return {}
-  end
-
-  -- check that region falls within current buffer
-  local buf_line_count = vim.api.nvim_buf_line_count(bufnr)
-  pos1[1] = math.min(pos1[1], buf_line_count - 1)
-  pos2[1] = math.min(pos2[1], buf_line_count - 1)
-
-  -- in case of block selection, columns need to be adjusted for non-ASCII characters
-  -- TODO: handle double-width characters
-  if regtype:byte() == 22 then
-    local bufline = vim.api.nvim_buf_get_lines(bufnr, pos1[1], pos1[1] + 1, true)[1]
-    pos1[2] = vim.str_utfindex(bufline, pos1[2])
-  end
-
-  local region = {}
-  for l = pos1[1], pos2[1] do
-    local c1 --- @type number
-    local c2 --- @type number
-    if regtype:byte() == 22 then -- block selection: take width from regtype
-      c1 = pos1[2]
-      c2 = c1 + tonumber(regtype:sub(2))
-      -- and adjust for non-ASCII characters
-      local bufline = vim.api.nvim_buf_get_lines(bufnr, l, l + 1, true)[1]
-      local utflen = vim.str_utfindex(bufline, #bufline)
-      if c1 <= utflen then
-        c1 = assert(tonumber(vim.str_byteindex(bufline, c1)))
-      else
-        c1 = #bufline + 1
-      end
-      if c2 <= utflen then
-        c2 = assert(tonumber(vim.str_byteindex(bufline, c2)))
-      else
-        c2 = #bufline + 1
-      end
-    elseif regtype == "V" then -- linewise selection, always return whole line
-      c1 = 0
-      c2 = -1
-    else
-      c1 = (l == pos1[1]) and pos1[2] or 0
-      if inclusive and l == pos2[1] then
-        local bufline = vim.api.nvim_buf_get_lines(bufnr, pos2[1], pos2[1] + 1, true)[1]
-        pos2[2] = vim.fn.byteidx(bufline, vim.fn.charidx(bufline, pos2[2]) + 1)
-      end
-      c2 = (l == pos2[1]) and pos2[2] or -1
-      -- c2 = pos2[2]
-    end
-    table.insert(region, l, { c1, c2 })
-  end
-  return region
-end
 
 ---Populates the inner `booleans` table with the base strings and the upper and
 ---lower case variants if they are enabled. The first boolean after the opposite
@@ -119,111 +36,98 @@ function M.generate_booleans(base_booleans)
 end
 
 ---Get the line region based from the output of `vim.region`
----@param linenr integer 1-index
----@param left integer 0-index
----@param right integer 0-index, values -1 and 0 return the full line
+---@param linenr integer 1-index?
+---@param left integer 0-index?
+---@param right integer 0-index, values -1 and 0 return the full line?
 function M.get_line(linenr, left, right)
   if left == 0 and right == -1 then
-    return vim.fn.getline(linenr)
+    return vim.fn.getline(linenr + 1)
   elseif right == -1 then
-    return vim.fn.getline(linenr):sub(left + 1)
+    return vim.fn.getline(linenr + 1):sub(left + 1)
   else
-    return vim.fn.getline(linenr):sub(left + 1, right + 1)
+    return vim.fn.getline(linenr + 1):sub(left + 1, right + 1)
   end
+end
+
+---Returns the cursor position. Lines and cols are 0-index with offset (char
+---width and utf-8 byte size)
+---@return Selection
+function M.get_cursor_position()
+  -- nvim_win_get_cursor output: [1] line (1-idx), [2] col (0-idx)
+  local to = vim.api.nvim_win_get_cursor(M.winid)
+  vim.api.nvim_feedkeys("o", "x", true)
+  local from = vim.api.nvim_win_get_cursor(M.winid)
+  vim.api.nvim_feedkeys("o", "x", true)
+
+  return {
+    from = { line = from[1] - 1, col = from[2] },
+    to = { line = to[1] - 1, col = to[2] },
+  }
+end
+
+---@param coords Selection
+---@return Selection
+function M.order_cursor_positions_visual_mode(coords)
+  -- Selection could be "normal", same line or inverted (right to left and/or bottom to top)
+  if coords.from.line > coords.to.line then
+    coords.from.line, coords.to.line = coords.to.line, coords.from.line
+    coords.from.col, coords.to.col = coords.to.col, coords.from.col
+  elseif coords.from.line == coords.to.line and coords.from.col > coords.to.col then
+    coords.from.col, coords.to.col = coords.to.col, coords.from.col
+  end
+
+  return coords
 end
 
 ---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_visual_mode(direction)
-  -- nvim_win_get_cursor output: [1] line (1-idx), [2] col (0-idx)
-  local selected_to = vim.api.nvim_win_get_cursor(M.winid)
-  vim.api.nvim_feedkeys("o", "x", true)
-  local selected_from = vim.api.nvim_win_get_cursor(M.winid)
-  vim.api.nvim_feedkeys("o", "x", true)
+  local cur = M.get_cursor_position()
+  cur = M.order_cursor_positions_visual_mode(cur)
 
-  ---@type integer, integer, integer, integer
-  local lnum_from, lnum_to, col_from, col_to
-
-  -- Selection could be "normal", same line or inverted (right to left and/or bottom to top)
-  if selected_from[1] < selected_to[1] then
-    lnum_from, lnum_to = selected_from[1], selected_to[1]
-    col_from, col_to = selected_from[2], selected_to[2]
-  elseif selected_from[1] > selected_to[1] then
-    lnum_from, lnum_to = selected_to[1], selected_from[1]
-    col_from, col_to = selected_to[2], selected_from[2]
-  elseif selected_from[1] == selected_to[1] then
-    lnum_from, lnum_to = selected_from[1], selected_to[1]
-    if selected_from[2] < selected_to[2] then
-      col_from, col_to = selected_from[2], selected_to[2]
-    else
-      col_from, col_to = selected_to[2], selected_from[2]
-    end
-  end
-
-  -- region input/output are 0-idx for lines and cols
-  local _pos1, _pos2 = { lnum_from - 1, col_from }, { lnum_to - 1, col_to }
-  local region = vim.region(M.bufnr, _pos1, _pos2, "v", false)
+  -- NOTE: vim.region modifies passed tables!
+  local region = vim.region(
+    M.bufnr,
+    { cur.from.line, cur.from.col },
+    { cur.to.line, cur.to.col },
+    "v",
+    false
+  )
 
   local replacement = {}
-  for linenr = lnum_from, lnum_to do
-    local line = M.get_line(linenr, region[linenr - 1][1], region[linenr - 1][2])
+  for linenr = cur.from.line, cur.to.line do
+    local line = M.get_line(linenr, region[linenr][1], region[linenr][2])
     line = M.toggle_line(direction, line)
     table.insert(replacement, line)
   end
 
-  local last_line_str = vim.fn.getline(lnum_to)
-  local last_select_line_width = vim.api.nvim_strwidth(last_line_str)
-
-  -- when using multi-byte characters the width of the col_to needs to be adjusted
-  local offset = M.get_offset(last_line_str, region[lnum_to - 1][1], col_to)
-  P(offset)
-
-  -- To avoid errors col_to needs to be adjusted when the cursor is outside the
-  -- last line width.
-  -- if offset.left == 0 then
-  --   col_to = math.min(col_to + 1, last_select_line_width)
-  -- else
-  --   col_to = col_to + offset.left + offset.right
-  -- end
-
-  col_to = math.min(col_to + 1, last_select_line_width)
-  col_to = col_to + offset.left
+  local offset = M.get_offset(cur)
+  cur.from.col = cur.from.col + offset.left
+  cur.to.col = cur.to.col + offset.right
 
   -- 0-idx. lines are end-inclusive, and cols idx are end-exclusive.
   vim.api.nvim_buf_set_text(
     M.bufnr,
-    lnum_from - 1,
-    col_from,
-    lnum_to - 1,
-    col_to,
+    cur.from.line,
+    cur.from.col,
+    cur.to.line,
+    cur.to.col,
     replacement
   )
 end
 
----@param line string
----@param col_from integer
----@param col_to integer
+---Get offset to handle multiwidth and >1-byte characters
+---@param cursor Selection
+---@param line string?
 ---@return { left: integer, right: integer } -- left/right: text to the left/right, outside the selection
-function M.get_offset(line, col_from, col_to)
-  local line_width = vim.api.nvim_strwidth(line)
+function M.get_offset(cursor, line)
+  line = line or vim.api.nvim_get_current_line()
   local line_width_lua = string.len(line)
-  if line_width_lua - line_width == 0 then
-    return { left = 0, right = 0 }
-  end
+  local cursor_outside_width_offset = line_width_lua == cursor.to.col and 0 or 1
 
-  local function section_offset(left, right)
-    local subline = line:sub(left, right)
-    local width = vim.api.nvim_strwidth(subline)
-    local bytes = string.len(subline)
-    return bytes - width
-  end
-
-  local before_offset = col_from > 1 and section_offset(1, col_from) or 0
-  local inner_offset = section_offset(col_from, col_to)
-  -- TODO: Remove after?
-  local after_offset = col_to ~= line_width and section_offset(col_to, line_width) or 0
-
-  assert(line_width + before_offset + inner_offset + after_offset == line_width_lua)
-  return { left = before_offset, right = inner_offset }
+  return {
+    left = 0,
+    right = cursor_outside_width_offset,
+  }
 end
 
 ---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
