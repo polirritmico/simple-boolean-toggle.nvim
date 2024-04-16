@@ -102,6 +102,7 @@ function M.toggle_nvim_visual_mode(direction)
 
   -- Cursor could be outside the line width
   local last_line_str = vim.fn.getline(cur.to.line + 1)
+  -- TODO: Why not vim.api.nvim_strwidth(line)?
   local line_width_lua = string.len(last_line_str)
   local cursor_outside_width_offset = line_width_lua == cur.to.col and 0 or 1
   cur.to.col = cur.to.col + cursor_outside_width_offset
@@ -119,12 +120,6 @@ function M.toggle_nvim_visual_mode(direction)
   -- TODO: Update cursor position only when the cursor is at the end or end+1
   -- col of the boolean value and the new toggled value is wider
 end
-
----Get offset to handle multiwidth and >1-byte characters
----@param cursor Selection
----@param line string?
----@return { left: integer, right: integer } -- left/right: text to the left/right, outside the selection
-function M.get_offset(cursor, line) end
 
 ---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_visual_line_mode(direction)
@@ -150,22 +145,33 @@ function M.toggle_nvim_visual_block_mode(direction)
   local cur = M.get_cursor_position()
   cur = M.order_cursor_positions(cur)
 
-  for linenr = cur.from.line, cur.to.line do
-    local line = vim.fn.getline(linenr + 1)
-    local line_width = vim.api.nvim_strwidth(line)
-    local offset = M.get_offset(cur, line)
-    local line_col_to = cur.to.col + 1 > line_width and line_width or cur.to.col
+  local region = vim.region(
+    M.bufnr,
+    { cur.from.line, cur.from.col },
+    { cur.to.line, cur.to.col },
+    "3", -- TODO: why 3 works?
+    true
+  )
 
-    local region = line:sub(cur.from.col + 1, line_col_to)
-    if region ~= "" then
-      local replacement = { M.toggle_line(direction, region) }
+  for linenr = cur.from.line, cur.to.line do
+    local line_coords = { from = region[linenr][1], to = region[linenr][2] }
+    local full_line = vim.fn.getline(linenr + 1)
+    -- TODO: check if this returns the correct region. bytes offset?
+    local line_reg = M.get_line(linenr, line_coords.from, line_coords.to)
+
+    if full_line ~= "" and line_reg ~= "" then
+      local line_width = vim.api.nvim_strwidth(full_line) -- or lua width?
+      local offset = line_width == line_coords.to and 0 or 1
+      line_coords.to = line_coords.to + offset
+
+      local replacement = { M.toggle_line(direction, line_reg) }
 
       vim.api.nvim_buf_set_text(
         M.bufnr,
         linenr,
-        cur.from.col,
+        line_coords.from,
         linenr,
-        line_col_to,
+        line_coords.to,
         replacement
       )
     end
