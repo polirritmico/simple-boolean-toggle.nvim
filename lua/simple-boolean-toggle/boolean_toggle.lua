@@ -67,7 +67,7 @@ end
 
 ---@param coords Selection
 ---@return Selection
-function M.order_cursor_positions_visual_mode(coords)
+function M.order_cursor_positions(coords)
   -- Selection could be "normal", same line or inverted (right to left and/or bottom to top)
   if coords.from.line > coords.to.line then
     coords.from.line, coords.to.line = coords.to.line, coords.from.line
@@ -82,7 +82,7 @@ end
 ---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_visual_mode(direction)
   local cur = M.get_cursor_position()
-  cur = M.order_cursor_positions_visual_mode(cur)
+  cur = M.order_cursor_positions(cur)
 
   -- NOTE: vim.region modifies passed tables!
   local region = vim.region(
@@ -100,10 +100,11 @@ function M.toggle_nvim_visual_mode(direction)
     table.insert(replacement, line)
   end
 
-  -- TODO: Remove this function?
-  local offset = M.get_offset(cur)
-  cur.from.col = cur.from.col + offset.left
-  cur.to.col = cur.to.col + offset.right
+  -- Cursor could be outside the line width
+  local last_line_str = vim.fn.getline(cur.to.line + 1)
+  local line_width_lua = string.len(last_line_str)
+  local cursor_outside_width_offset = line_width_lua == cur.to.col and 0 or 1
+  cur.to.col = cur.to.col + cursor_outside_width_offset
 
   -- 0-idx. lines are end-inclusive, and cols idx are end-exclusive.
   vim.api.nvim_buf_set_text(
@@ -123,16 +124,7 @@ end
 ---@param cursor Selection
 ---@param line string?
 ---@return { left: integer, right: integer } -- left/right: text to the left/right, outside the selection
-function M.get_offset(cursor, line)
-  line = line or vim.fn.getline(cursor.to.line + 1)
-  local line_width_lua = string.len(line)
-  local cursor_outside_width_offset = line_width_lua == cursor.to.col and 0 or 1
-
-  return {
-    left = 0,
-    right = cursor_outside_width_offset,
-  }
-end
+function M.get_offset(cursor, line) end
 
 ---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_visual_line_mode(direction)
@@ -155,33 +147,24 @@ end
 
 ---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_visual_block_mode(direction)
-  -- col and line are 1-idx
-  local select_from = vim.fn.getpos("v")
-  local select_to = vim.fn.getpos(".")
+  local cur = M.get_cursor_position()
+  cur = M.order_cursor_positions(cur)
 
-  ---@type integer, integer, integer, integer
-  local lnum_from, lnum_to, col_from, col_to
-
-  -- Order selection coords from top to btm and left to right
-  lnum_from = select_from[2] < select_to[2] and select_from[2] or select_to[2]
-  lnum_to = select_from[2] < select_to[2] and select_to[2] or select_from[2]
-  col_from = select_from[3] < select_to[3] and select_from[3] or select_to[3]
-  col_to = select_from[3] < select_to[3] and select_to[3] or select_from[3]
-
-  for linenr = lnum_from, lnum_to do
-    local line = vim.fn.getline(linenr)
+  for linenr = cur.from.line, cur.to.line do
+    local line = vim.fn.getline(linenr + 1)
     local line_width = vim.api.nvim_strwidth(line)
-    local line_col_to = col_to > line_width and line_width or col_to
+    local offset = M.get_offset(cur, line)
+    local line_col_to = cur.to.col + 1 > line_width and line_width or cur.to.col
 
-    local region = line:sub(col_from, line_col_to)
+    local region = line:sub(cur.from.col + 1, line_col_to)
     if region ~= "" then
       local replacement = { M.toggle_line(direction, region) }
 
       vim.api.nvim_buf_set_text(
         M.bufnr,
-        linenr - 1,
-        col_from - 1,
-        linenr - 1,
+        linenr,
+        cur.from.col,
+        linenr,
         line_col_to,
         replacement
       )
