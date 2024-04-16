@@ -225,3 +225,57 @@ describe("Visual mode:", function()
     assert.same(expected, output)
   end)
 end)
+
+describe("Visual mode (reverse):", function()
+  before_each(function()
+    winid = vim.api.nvim_get_current_win()
+    bufnr = vim.api.nvim_create_buf(false, true)
+    sbt.winid = winid
+    sbt.bufnr = bufnr
+    vim.api.nvim_win_set_buf(winid, bufnr)
+  end)
+
+  after_each(function()
+    h.clear_buffer(bufnr)
+  end)
+
+  it("Select from last pos to line above", function()
+    local case = [[
+      a    true
+      aa   true
+      aaa  true
+      aaaa true
+    ]]
+    local expected = h.clean_text_format([[
+      a    true
+      aa   true
+      aaa  false
+      aaaa false
+    ]])
+    h.set_case(bufnr, winid, case, { 4, 9 })
+    h.feedkeys("vbk")
+    sbt.toggle_nvim_visual_mode(true)
+    local output = h.get_buffer_content(bufnr)
+    assert.same(expected, output)
+  end)
+
+  it("Select from last pos to smaller line above", function()
+    local case = [[
+      a    true
+      aa   true
+      aaa  true
+      aaaa false
+    ]]
+    local expected = h.clean_text_format([[
+      a    true
+      aa   true
+      aaa  false
+      aaaa true
+    ]])
+    h.set_case(bufnr, winid, case, { 4, 9 })
+    h.feedkeys("vkk")
+    sbt.toggle_nvim_visual_mode(true)
+    local output = h.get_buffer_content(bufnr)
+    assert.same(expected, output)
+  end)
+end)

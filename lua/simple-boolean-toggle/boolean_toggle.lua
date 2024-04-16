@@ -100,6 +100,7 @@ function M.toggle_nvim_visual_mode(direction)
     table.insert(replacement, line)
   end
 
+  -- TODO: Remove this function?
   local offset = M.get_offset(cur)
   cur.from.col = cur.from.col + offset.left
   cur.to.col = cur.to.col + offset.right
@@ -113,6 +114,9 @@ function M.toggle_nvim_visual_mode(direction)
     cur.to.col,
     replacement
   )
+
+  -- TODO: Update cursor position only when the cursor is at the end or end+1
+  -- col of the boolean value and the new toggled value is wider
 end
 
 ---Get offset to handle multiwidth and >1-byte characters
@@ -120,7 +124,7 @@ end
 ---@param line string?
 ---@return { left: integer, right: integer } -- left/right: text to the left/right, outside the selection
 function M.get_offset(cursor, line)
-  line = line or vim.api.nvim_get_current_line()
+  line = line or vim.fn.getline(cursor.to.line + 1)
   local line_width_lua = string.len(line)
   local cursor_outside_width_offset = line_width_lua == cursor.to.col and 0 or 1
 
