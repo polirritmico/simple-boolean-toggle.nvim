@@ -65,24 +65,25 @@ function M.get_cursor_position()
   }
 end
 
----@param coords Selection
----@return Selection
-function M.order_cursor_positions(coords)
+---@param _coords Selection
+---@return boolean reverse
+function M.order_cursor_positions(_coords)
   -- Selection could be "normal", same line or inverted (right to left and/or bottom to top)
-  if coords.from.line > coords.to.line then
-    coords.from.line, coords.to.line = coords.to.line, coords.from.line
-    coords.from.col, coords.to.col = coords.to.col, coords.from.col
-  elseif coords.from.line == coords.to.line and coords.from.col > coords.to.col then
-    coords.from.col, coords.to.col = coords.to.col, coords.from.col
+  if _coords.from.line > _coords.to.line then
+    _coords.from.line, _coords.to.line = _coords.to.line, _coords.from.line
+    _coords.from.col, _coords.to.col = _coords.to.col, _coords.from.col
+  elseif _coords.from.line == _coords.to.line and _coords.from.col > _coords.to.col then
+    _coords.from.col, _coords.to.col = _coords.to.col, _coords.from.col
+  else
+    return false
   end
-
-  return coords
+  return true
 end
 
 ---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
 function M.toggle_nvim_visual_mode(direction)
   local cur = M.get_cursor_position()
-  cur = M.order_cursor_positions(cur)
+  local reverse = M.order_cursor_positions(cur)
 
   -- NOTE: vim.region modifies passed tables!
   local region = vim.region(
@@ -102,9 +103,8 @@ function M.toggle_nvim_visual_mode(direction)
 
   -- Cursor could be outside the line width
   local last_line_str = vim.fn.getline(cur.to.line + 1)
-  -- TODO: Why not vim.api.nvim_strwidth(line)?
-  local line_width_lua = string.len(last_line_str)
-  local cursor_outside_width_offset = line_width_lua == cur.to.col and 0 or 1
+  local last_line_width_lua = string.len(last_line_str)
+  local cursor_outside_width_offset = last_line_width_lua == cur.to.col and 0 or 1
   cur.to.col = cur.to.col + cursor_outside_width_offset
 
   -- 0-idx. lines are end-inclusive, and cols idx are end-exclusive.
@@ -117,8 +117,16 @@ function M.toggle_nvim_visual_mode(direction)
     replacement
   )
 
-  -- TODO: Update cursor position only when the cursor is at the end or end+1
-  -- col of the boolean value and the new toggled value is wider
+  -- Update cursor position if needed
+  if not reverse then
+    local new_last_line_width = string.len(vim.fn.getline(cur.to.line + 1))
+    if new_last_line_width > last_line_width_lua then
+      vim.api.nvim_win_set_cursor(M.winid, { cur.to.line + 1, cur.to.col })
+    elseif new_last_line_width < last_line_width_lua then
+      local col = cur.to.col - (last_line_width_lua - new_last_line_width)
+      vim.api.nvim_win_set_cursor(M.winid, { cur.to.line + 1, col - 1 })
+    end
+  end
 end
 
 ---@param direction boolean|nil `true` for inc, `false` for dec, `nil` for only boolean toggle
